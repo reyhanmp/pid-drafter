@@ -1,0 +1,219 @@
+.app-shell {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.canvas-wrapper {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.right-rail {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #ccc;
+  background: #fafafa;
+  overflow-y: auto;
+}
+
+/* --- Validation panel --- */
+.validation-panel {
+  border-bottom: 1px solid #ddd;
+  padding: 10px 12px;
+}
+
+.validation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.validation-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.validation-badge.ok {
+  background: #d4f4dd;
+  color: #1a7a34;
+}
+
+.validation-badge.error {
+  background: #fbdada;
+  color: #a4231a;
+}
+
+.validation-empty {
+  font-size: 12px;
+  color: #666;
+}
+
+.validation-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: #a4231a;
+}
+
+.validation-item {
+  margin-bottom: 4px;
+}
+
+/* --- Palette --- */
+.palette {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.palette-header {
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.palette-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.palette-category-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #eee;
+  border: none;
+  border-bottom: 1px solid #ddd;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.palette-category-toggle:hover {
+  background: #e2e2e2;
+}
+
+.chevron {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.1s ease;
+}
+
+.chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.palette-category-count {
+  margin-left: auto;
+  color: #888;
+  font-weight: 400;
+}
+
+.palette-items {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 10px;
+}
+
+.palette-item {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: grab;
+  user-select: none;
+}
+
+.palette-item:hover {
+  border-color: #0066cc;
+}
+
+.palette-item-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+}
+
+.palette-item-label {
+  font-size: 10px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* --- Tag edit overlay --- */
+.tag-edit-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.tag-edit-box {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 260px;
+}
+
+.tag-edit-box label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag-edit-box input {
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.tag-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tag-edit-actions button {
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.tag-edit-actions button:first-child {
+  background: #0066cc;
+  color: #fff;
+  border-color: #0066cc;
+}
