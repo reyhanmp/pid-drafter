@@ -17,6 +17,18 @@ import instrumentCircle from './instrument-circle';
 import instrumentSquare from './instrument-square';
 import agitator from './agitator';
 import heatExchanger from './heat-exchanger';
+import valveCheck from './valve-check';
+import valveBall from './valve-ball';
+import valveRelief from './valve-relief';
+import valveSolenoid from './valve-solenoid';
+import reducerConcentric from './reducer-concentric';
+import restrictionOrifice from './restriction-orifice';
+import strainer from './strainer';
+import flangePair from './flange-pair';
+import relayDiamond from './relay-diamond';
+import ventTerminator from './vent-terminator';
+import drainTerminator from './drain-terminator';
+import offpageConnector from './offpage-connector';
 
 export const allSymbols: SymbolDefinition[] = [
   vesselVertical,
@@ -28,6 +40,18 @@ export const allSymbols: SymbolDefinition[] = [
   instrumentSquare,
   agitator,
   heatExchanger,
+  valveCheck,
+  valveBall,
+  valveRelief,
+  valveSolenoid,
+  reducerConcentric,
+  restrictionOrifice,
+  strainer,
+  flangePair,
+  relayDiamond,
+  ventTerminator,
+  drainTerminator,
+  offpageConnector,
 ];
 
 /** Lookup table keyed by symbol kind (used by node renderers). */
@@ -43,6 +67,9 @@ export const CATEGORY_ORDER: SymbolCategory[] = [
   'Instruments',
   'Agitators',
   'Heat Exchangers',
+  'Piping Accessories',
+  'Signal & Logic',
+  'Terminators',
 ];
 
 /** Symbols grouped by category, in declared category order — drives the palette. */
