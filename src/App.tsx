@@ -4,6 +4,7 @@ import {
   ReactFlowProvider,
   Background,
   Controls,
+  ConnectionMode,
   MarkerType,
   addEdge,
   applyNodeChanges,
@@ -175,6 +176,7 @@ function DrawingCanvas() {
           onNodeDoubleClick={onNodeDoubleClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          connectionMode={ConnectionMode.Loose}
           snapToGrid
           snapGrid={[GRID, GRID]}
           fitView
