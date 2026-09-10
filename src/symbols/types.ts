@@ -45,7 +45,10 @@ export type SymbolCategory =
   | 'Valves'
   | 'Instruments'
   | 'Agitators'
-  | 'Heat Exchangers';
+  | 'Heat Exchangers'
+  | 'Piping Accessories'
+  | 'Signal & Logic'
+  | 'Terminators';
 
 /** Props passed to a symbol's geometry component. */
 export interface SymbolGeometryProps {
