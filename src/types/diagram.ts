@@ -14,6 +14,24 @@ export interface EquipmentNodeData {
   loopNumber?: string;
   width: number;
   height: number;
+  /**
+   * Per-instance port/nozzle override. When present, this list is used
+   * instead of the symbol type's default `ports` for rendering Handles,
+   * validation, and connection lookups — letting a single instance add,
+   * remove, or reposition nozzles without affecting the symbol type or
+   * any other instance. When absent, `symbolsByKind[kind].ports` is used
+   * (see `getEffectivePorts` helper). Seeded from the symbol default the
+   * first time a node's ports are edited.
+   */
+  ports?: SymbolPort[];
+  /**
+   * Free-form data-sheet fields, keyed by field id (e.g. "designPressure",
+   * "npshAvailable"). Field sets differ per equipment category — see
+   * src/dataSheet/fieldSchemas.ts for the per-category field definitions.
+   * A bag rather than named properties keeps this type stable as field
+   * schemas evolve per category.
+   */
+  properties?: Record<string, string>;
   [key: string]: unknown;
 }
 

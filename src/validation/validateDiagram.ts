@@ -4,6 +4,7 @@
  * by a future export/print pipeline.
  */
 import { symbolsByKind } from '../symbols/index';
+import { getEffectivePorts } from '../symbols/effectivePorts';
 import type { EquipmentNodeData, PipeEdgeData } from '../types/diagram';
 
 export interface DiagramNode {
@@ -82,8 +83,11 @@ function checkPortConnections(nodes: DiagramNode[], edges: DiagramEdge[]): Valid
       const symbol = symbolsByKind[sourceNode.data.kind];
       if (!symbol) {
         problems.push('source equipment has unknown symbol kind');
-      } else if (!edge.sourceHandle || !symbol.ports.some((p) => p.id === edge.sourceHandle)) {
-        problems.push('source end is not attached to a declared port');
+      } else {
+        const effectivePorts = getEffectivePorts(sourceNode.data.kind, sourceNode.data.ports);
+        if (!edge.sourceHandle || !effectivePorts.some((p) => p.id === edge.sourceHandle)) {
+          problems.push('source end is not attached to a declared port');
+        }
       }
     }
 
@@ -91,8 +95,11 @@ function checkPortConnections(nodes: DiagramNode[], edges: DiagramEdge[]): Valid
       const symbol = symbolsByKind[targetNode.data.kind];
       if (!symbol) {
         problems.push('target equipment has unknown symbol kind');
-      } else if (!edge.targetHandle || !symbol.ports.some((p) => p.id === edge.targetHandle)) {
-        problems.push('target end is not attached to a declared port');
+      } else {
+        const effectivePorts = getEffectivePorts(targetNode.data.kind, targetNode.data.ports);
+        if (!edge.targetHandle || !effectivePorts.some((p) => p.id === edge.targetHandle)) {
+          problems.push('target end is not attached to a declared port');
+        }
       }
     }
 
