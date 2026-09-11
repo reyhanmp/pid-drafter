@@ -217,3 +217,165 @@
   color: #fff;
   border-color: #0066cc;
 }
+
+/* --- Data sheet panel --- */
+.data-sheet-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.data-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.data-sheet-close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+}
+
+.data-sheet-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.data-sheet-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #444;
+}
+
+.data-sheet-field input,
+.data-sheet-field select {
+  font-size: 12px;
+  padding: 5px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.nozzle-editor {
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.nozzle-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.nozzle-editor-header button {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #0066cc;
+  background: #0066cc;
+  color: #fff;
+  cursor: pointer;
+}
+
+.nozzle-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nozzle-item {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nozzle-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.nozzle-item-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nozzle-item-row input[type='number'] {
+  width: 52px;
+  font-size: 11px;
+  padding: 3px 4px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.nozzle-label-input {
+  flex: 1;
+  font-size: 11px;
+  padding: 3px 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.nozzle-connected-badge {
+  font-size: 10px;
+  background: #d4f4dd;
+  color: #1a7a34;
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.nozzle-remove-btn {
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #cc4444;
+  background: #fff;
+  color: #cc4444;
+  cursor: pointer;
+}
+
+.nozzle-direction-row {
+  flex-wrap: wrap;
+}
+
+.nozzle-dir-btn {
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  cursor: pointer;
+}
+
+.nozzle-dir-btn.active {
+  background: #0066cc;
+  color: #fff;
+  border-color: #0066cc;
+}

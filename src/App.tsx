@@ -23,6 +23,8 @@ import PipeEdge from './edges/PipeEdge';
 import SymbolPalette from './components/SymbolPalette';
 import ValidationPanel from './components/ValidationPanel';
 import { symbolsByKind } from './symbols';
+import { getEffectivePorts } from './symbols/effectivePorts';
+import DataSheetPanel from './components/DataSheetPanel';
 import { validateDiagram, type DiagramEdge, type DiagramNode } from './validation/validateDiagram';
 import type { EquipmentNodeData, PipeEdgeData } from './types/diagram';
 import './App.css';
@@ -43,6 +45,7 @@ function DrawingCanvas() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -72,8 +75,13 @@ function DrawingCanvas() {
 
       const sourceSymbol = symbolsByKind[(sourceNode.data as unknown as EquipmentNodeData).kind];
       const targetSymbol = symbolsByKind[(targetNode.data as unknown as EquipmentNodeData).kind];
-      const sourcePort = sourceSymbol?.ports.find((p) => p.id === connection.sourceHandle);
-      const targetPort = targetSymbol?.ports.find((p) => p.id === connection.targetHandle);
+      const sourceData = sourceNode.data as unknown as EquipmentNodeData;
+      const targetData = targetNode.data as unknown as EquipmentNodeData;
+      const sourcePorts = getEffectivePorts(sourceData.kind, sourceData.ports);
+      const targetPorts = getEffectivePorts(targetData.kind, targetData.ports);
+      const sourcePort = sourcePorts.find((p) => p.id === connection.sourceHandle);
+      const targetPort = targetPorts.find((p) => p.id === connection.targetHandle);
+      if (!sourceSymbol || !targetSymbol) return;
       if (!sourcePort || !targetPort) return; // defensive: refuse to create an unseated pipe
 
       const lineType: PipeEdgeData['lineType'] =
@@ -138,6 +146,18 @@ function DrawingCanvas() {
     setEditingValue((node.data as unknown as EquipmentNodeData).tag ?? '');
   }, []);
 
+  const onNodeClick: NodeMouseHandler = useCallback((_evt, node) => {
+    setSelectedNodeId(node.id);
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+  }, []);
+
+  const updateNodeData = useCallback((nodeId: string, patch: Partial<EquipmentNodeData>) => {
+    setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n)));
+  }, []);
+
   const commitTagEdit = useCallback(() => {
     if (!editingNodeId) return;
     setNodes((nds) =>
@@ -164,6 +184,18 @@ function DrawingCanvas() {
   );
   const validation = useMemo(() => validateDiagram(diagramNodes, diagramEdges), [diagramNodes, diagramEdges]);
 
+  const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
+
+  const connectedPortIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!selectedNodeId) return set;
+    for (const e of edges) {
+      if (e.source === selectedNodeId && e.sourceHandle) set.add(e.sourceHandle);
+      if (e.target === selectedNodeId && e.targetHandle) set.add(e.targetHandle);
+    }
+    return set;
+  }, [edges, selectedNodeId]);
+
   return (
     <div className="app-shell">
       <div className="canvas-wrapper" ref={wrapperRef} onDragOver={onDragOver} onDrop={onDrop}>
@@ -174,6 +206,8 @@ function DrawingCanvas() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeDoubleClick={onNodeDoubleClick}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           connectionMode={ConnectionMode.Loose}
@@ -209,7 +243,17 @@ function DrawingCanvas() {
       </div>
       <div className="right-rail">
         <ValidationPanel errors={validation.errors} />
-        <SymbolPalette />
+        {selectedNode ? (
+          <DataSheetPanel
+            nodeId={selectedNode.id}
+            data={selectedNode.data as unknown as EquipmentNodeData}
+            connectedPortIds={connectedPortIds}
+            onUpdateData={updateNodeData}
+            onClose={() => setSelectedNodeId(null)}
+          />
+        ) : (
+          <SymbolPalette />
+        )}
       </div>
     </div>
   );
