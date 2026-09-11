@@ -24,6 +24,7 @@ import SymbolPalette from './components/SymbolPalette';
 import ValidationPanel from './components/ValidationPanel';
 import { symbolsByKind } from './symbols';
 import { getEffectivePorts } from './symbols/effectivePorts';
+import { toReactFlowHandles } from './symbols/toReactFlowHandles';
 import DataSheetPanel from './components/DataSheetPanel';
 import { validateDiagram, type DiagramEdge, type DiagramNode } from './validation/validateDiagram';
 import type { EquipmentNodeData, PipeEdgeData } from './types/diagram';
@@ -129,6 +130,11 @@ function DrawingCanvas() {
         id,
         type: 'equipment',
         position,
+        // Declared directly (not measured from the DOM) so React Flow's
+        // handle bounds are always correct from the first render, and
+        // stay correct if this node's ports are later customized - see
+        // toReactFlowHandles.ts for why this avoids a real timing race.
+        handles: toReactFlowHandles(symbol.ports),
         data: {
           kind: symbol.kind,
           tag: nextTag(symbol.tagPrefix),
@@ -155,7 +161,23 @@ function DrawingCanvas() {
   }, []);
 
   const updateNodeData = useCallback((nodeId: string, patch: Partial<EquipmentNodeData>) => {
-    setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n)));
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id !== nodeId) return n;
+        const nextData = { ...n.data, ...patch };
+        const updated: Node = { ...n, data: nextData };
+        // If this patch changes the node's effective ports (nozzle
+        // added/removed/repositioned), keep node.handles in lockstep so
+        // React Flow's connection system never reads stale geometry -
+        // see toReactFlowHandles.ts.
+        if ('ports' in patch) {
+          const kind = (nextData as unknown as EquipmentNodeData).kind;
+          const effectivePorts = getEffectivePorts(kind, (nextData as unknown as EquipmentNodeData).ports);
+          updated.handles = toReactFlowHandles(effectivePorts);
+        }
+        return updated;
+      }),
+    );
   }, []);
 
   const commitTagEdit = useCallback(() => {
