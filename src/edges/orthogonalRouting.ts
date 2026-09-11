@@ -12,6 +12,7 @@ export interface RoutePoint {
 }
 
 const STUB = 20; // minimum straight run out of a port before turning
+const ALIGN_TOLERANCE = 6; // px: ports within this offset are treated as aligned (avoids a visible micro-jog)
 
 /**
  * Build an orthogonal (Manhattan) route from `start` (leaving along
@@ -35,15 +36,28 @@ export function buildOrthogonalPath(
   const endHorizontal = Math.abs(endDir.x) > Math.abs(endDir.y);
 
   if (startHorizontal && endHorizontal) {
-    // both stubs run horizontally: connect with a vertical midpoint jog
-    const midX = (p1.x + p2.x) / 2;
-    points.push({ x: midX, y: p1.y });
-    points.push({ x: midX, y: p2.y });
+    if (Math.abs(p1.y - p2.y) <= ALIGN_TOLERANCE) {
+      // Ports are close enough to level that a full double-jog (mid-run
+      // jog + jog again near the target) reads as visual jank rather
+      // than a deliberate corner. Collapse it into a single right-angle
+      // bend right next to the target instead - p2's own y must stay on
+      // its own port normal, so we bend just before it, not by moving it.
+      points.push({ x: p2.x, y: p1.y });
+    } else {
+      // both stubs run horizontally: connect with a vertical midpoint jog
+      const midX = (p1.x + p2.x) / 2;
+      points.push({ x: midX, y: p1.y });
+      points.push({ x: midX, y: p2.y });
+    }
   } else if (!startHorizontal && !endHorizontal) {
-    // both stubs run vertically: connect with a horizontal midpoint jog
-    const midY = (p1.y + p2.y) / 2;
-    points.push({ x: p1.x, y: midY });
-    points.push({ x: p2.x, y: midY });
+    if (Math.abs(p1.x - p2.x) <= ALIGN_TOLERANCE) {
+      points.push({ x: p1.x, y: p2.y });
+    } else {
+      // both stubs run vertically: connect with a horizontal midpoint jog
+      const midY = (p1.y + p2.y) / 2;
+      points.push({ x: p1.x, y: midY });
+      points.push({ x: p2.x, y: midY });
+    }
   } else if (startHorizontal && !endHorizontal) {
     // start leaves horizontally, end arrives vertically -> single L corner
     points.push({ x: p2.x, y: p1.y });
