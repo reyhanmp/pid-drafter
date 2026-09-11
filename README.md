@@ -49,18 +49,16 @@ repositioned, or removed independently of the symbol type's default set
 symbol's defaults if uncustomized"). This is edited from the same data
 sheet panel.
 
-**Known limitation:** connecting a pipe to a *newly-added* custom nozzle
-does not currently work reliably. React Flow caches each node's handle
-geometry internally and only re-measures it under specific conditions;
-adding a nozzle changes the rendered Handles but there's a timing race
-with React Flow's own internal node-sync pass that can leave the cache
-stale, so a drag from a brand-new nozzle may silently fail to connect.
-Connecting to any of a symbol's *original* (palette-default) ports works
-correctly and is unaffected. Repositioning/removing existing nozzles,
-and the data sheet fields themselves, all work as expected — only
-*newly added* nozzles have this connection gap. Root cause is understood
-(see `EquipmentNode.tsx`'s `updateNodeInternals` effect and its comments)
-but not yet fully resolved; flagged here rather than silently shipped.
+**Resolved:** connecting a pipe to a *newly-added* custom nozzle now
+works reliably. The original implementation relied on React Flow
+measuring each `<Handle>`'s DOM position (via `updateNodeInternals()`),
+which raced against React Flow's own internal node-adoption pass and
+could silently keep stale/empty handle bounds cached after a nozzle was
+added. Fixed by declaring each node's handle geometry directly via
+React Flow's `node.handles` field (see `src/symbols/toReactFlowHandles.ts`)
+instead of relying on DOM measurement at all — this is deterministic,
+kept in sync with `data.ports` on every update, and has no timing
+window to race against.
 
 ## React Compiler
 
