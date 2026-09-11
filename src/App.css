@@ -21,6 +21,16 @@
   overflow-y: auto;
 }
 
+.left-rail {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #ccc;
+  background: #fafafa;
+  overflow-y: auto;
+}
+
 /* --- Validation panel --- */
 .validation-panel {
   border-bottom: 1px solid #ddd;
@@ -378,4 +388,56 @@
   background: #0066cc;
   color: #fff;
   border-color: #0066cc;
+}
+
+/* --- Line data sheet extras --- */
+.data-sheet-field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.data-sheet-field-inline input[type='checkbox'] {
+  width: auto;
+}
+
+.line-type-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.line-type-btn {
+  flex: 1;
+  font-size: 11px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  cursor: pointer;
+}
+
+.line-type-btn.active {
+  background: #0066cc;
+  color: #fff;
+  border-color: #0066cc;
+}
+
+/* --- Pipe delete button (rendered via EdgeLabelRenderer) --- */
+.pipe-delete-btn {
+  width: 18px;
+  height: 18px;
+  line-height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #cc4444;
+  background: #fff;
+  color: #cc4444;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.pipe-delete-btn:hover {
+  background: #cc4444;
+  color: #fff;
 }

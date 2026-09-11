@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, useReactFlow, type EdgeProps } from '@xyflow/react';
 import { buildOrthogonalPath, pointsToPath } from './orthogonalRouting';
 import type { PipeEdgeData } from '../types/diagram';
 import type { PortDirection } from '../symbols/types';
@@ -15,7 +15,8 @@ import type { PortDirection } from '../symbols/types';
  * the pipe reads as physically continuous with the equipment nozzle.
  */
 function PipeEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, data, selected, markerEnd } = props;
+  const { id, sourceX, sourceY, targetX, targetY, data, selected, markerEnd } = props;
+  const { setEdges } = useReactFlow();
   const d = (data ?? {}) as Partial<PipeEdgeData> & {
     sourceDirection?: PortDirection;
     targetDirection?: PortDirection;
@@ -40,6 +41,14 @@ function PipeEdge(props: EdgeProps) {
   const midIndex = Math.floor(points.length / 2);
   const mid = points[midIndex] ?? { x: (sourceX + targetX) / 2, y: (sourceY + targetY) / 2 };
 
+  const labelBits = [d.lineNumber, d.lineName, d.lineSize].filter(Boolean);
+  const label = labelBits.join(' · ');
+
+  function removeSelf(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEdges((eds) => eds.filter((edge) => edge.id !== id));
+  }
+
   return (
     <>
       <BaseEdge
@@ -52,12 +61,12 @@ function PipeEdge(props: EdgeProps) {
           fill: 'none',
         }}
       />
-      {d.lineNumber ? (
-        <EdgeLabelRenderer>
+      <EdgeLabelRenderer>
+        {label ? (
           <div
             style={{
               position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${mid.x}px, ${mid.y}px)`,
+              transform: `translate(-50%, -50%) translate(${mid.x}px, ${mid.y - (selected ? 12 : 0)}px)`,
               fontSize: 9,
               fontFamily: 'monospace',
               background: '#fff',
@@ -65,10 +74,26 @@ function PipeEdge(props: EdgeProps) {
               pointerEvents: 'none',
             }}
           >
-            {d.lineNumber}
+            {label}
           </div>
-        </EdgeLabelRenderer>
-      ) : null}
+        ) : null}
+        {selected ? (
+          <button
+            className="pipe-delete-btn"
+            title="Delete this pipe"
+            aria-label="Delete pipe"
+            data-testid={`pipe-delete-${id}`}
+            onClick={removeSelf}
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${mid.x}px, ${mid.y + 12}px)`,
+              pointerEvents: 'all',
+            }}
+          >
+            ×
+          </button>
+        ) : null}
+      </EdgeLabelRenderer>
     </>
   );
 }

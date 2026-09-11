@@ -34,31 +34,39 @@ maintenance.
 
 That's it — the palette and node registry pick it up automatically.
 
-## Equipment data sheet & per-instance nozzles
+## Equipment & line data sheets
 
-Single-clicking a node selects it and shows a full data sheet in the
-right rail (replacing the palette until deselected). Fields differ by
-equipment category (vessel gets design pressure/temp/material/volume,
-pump gets flow rate/head/NPSH/driver power, valve gets size/rating/fail
-position, etc.) — see `src/dataSheet/fieldSchemas.ts`. Double-clicking a
-node still opens the original quick tag-edit modal, unchanged.
+Single-clicking a node or a pipe opens a data sheet in the **left-side
+panel** (the right-hand palette always stays visible, regardless of
+selection).
+
+**Equipment data sheet** (click a node): fields differ by equipment
+category (vessel gets design pressure/temp/material/volume, pump gets
+flow rate/head/NPSH/driver power, valve gets size/rating/fail position,
+etc.) — see `src/dataSheet/fieldSchemas.ts`. Double-clicking a node still
+opens the quick tag-edit modal, unchanged.
+
+**Line data sheet** (click a pipe) — `src/components/LineDataSheetPanel.tsx`:
+line name, nominal size (dropdown), jacketed/traced (checkbox), material
+of construction (real ASME/ANSI-style pressure-class + alloy dropdown —
+see `MATERIAL_OF_CONSTRUCTION_OPTIONS` in `src/types/diagram.ts`), and a
+piping/instrument line-type toggle that actually flips the rendered line
+between solid and dashed.
+
+**Deleting a pipe**: select it (click), then either press Delete/Backspace
+or click the small × button that appears at the pipe's midpoint.
 
 Each node instance can also have its own custom ports/nozzles, added,
 repositioned, or removed independently of the symbol type's default set
 (`src/symbols/effectivePorts.ts` resolves "this instance's ports, or the
-symbol's defaults if uncustomized"). This is edited from the same data
-sheet panel.
+symbol's defaults if uncustomized"). This is edited from the same
+equipment data sheet panel.
 
-**Resolved:** connecting a pipe to a *newly-added* custom nozzle now
-works reliably. The original implementation relied on React Flow
-measuring each `<Handle>`'s DOM position (via `updateNodeInternals()`),
-which raced against React Flow's own internal node-adoption pass and
-could silently keep stale/empty handle bounds cached after a nozzle was
-added. Fixed by declaring each node's handle geometry directly via
-React Flow's `node.handles` field (see `src/symbols/toReactFlowHandles.ts`)
-instead of relying on DOM measurement at all — this is deterministic,
-kept in sync with `data.ports` on every update, and has no timing
-window to race against.
+Connecting a pipe to a newly-added custom nozzle works reliably — each
+node's handle geometry is declared directly via React Flow's `node.handles`
+field (`src/symbols/toReactFlowHandles.ts`) rather than relying on DOM
+measurement, which eliminates a timing race that used to affect
+freshly-added nozzles.
 
 ## React Compiler
 
