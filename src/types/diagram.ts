@@ -46,5 +46,47 @@ export interface PipeEdgeData {
   lineType: 'process' | 'signal';
   /** Line number label shown along the pipe, optional in this phase. */
   lineNumber?: string;
+  /** Free-text descriptive name, e.g. "Feed to Reactor". */
+  lineName?: string;
+  /** Nominal pipe size, e.g. '2"'. */
+  lineSize?: string;
+  /** Whether the line is jacketed/traced. */
+  jacketed?: boolean;
+  /** ASME/ANSI-style material of construction + pressure class. */
+  materialOfConstruction?: string;
   [key: string]: unknown;
 }
+
+/** Standard nominal pipe sizes offered in the line data sheet. */
+export const LINE_SIZE_OPTIONS = [
+  '1/2"',
+  '3/4"',
+  '1"',
+  '1.5"',
+  '2"',
+  '3"',
+  '4"',
+  '6"',
+  '8"',
+  '10"',
+  '12"',
+];
+
+/** Real ASME/ANSI-style material-of-construction + pressure class options. */
+export const MATERIAL_OF_CONSTRUCTION_OPTIONS = [
+  'Carbon Steel - ASME B16.5 Class 150',
+  'Carbon Steel - ASME B16.5 Class 300',
+  'Carbon Steel - ASME B16.5 Class 600',
+  'Stainless Steel 304 - ASME B16.5 Class 150',
+  'Stainless Steel 304 - ASME B16.5 Class 300',
+  'Stainless Steel 316 - ASME B16.5 Class 150',
+  'Stainless Steel 316 - ASME B16.5 Class 300',
+  'Stainless Steel 316L - ASME B16.5 Class 150',
+  'Duplex Stainless Steel 2205',
+  'Chrome-Moly Alloy Steel (P11/P22)',
+  'PVC (Schedule 80)',
+  'CPVC',
+  'PTFE-Lined Carbon Steel',
+  'Copper',
+  'HDPE',
+];

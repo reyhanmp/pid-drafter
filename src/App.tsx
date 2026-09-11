@@ -16,6 +16,7 @@ import {
   type NodeChange,
   type EdgeChange,
   type NodeMouseHandler,
+  type EdgeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import EquipmentNode from './components/EquipmentNode';
@@ -26,6 +27,7 @@ import { symbolsByKind } from './symbols';
 import { getEffectivePorts } from './symbols/effectivePorts';
 import { toReactFlowHandles } from './symbols/toReactFlowHandles';
 import DataSheetPanel from './components/DataSheetPanel';
+import LineDataSheetPanel from './components/LineDataSheetPanel';
 import { validateDiagram, type DiagramEdge, type DiagramNode } from './validation/validateDiagram';
 import type { EquipmentNodeData, PipeEdgeData } from './types/diagram';
 import './App.css';
@@ -47,6 +49,7 @@ function DrawingCanvas() {
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -154,10 +157,35 @@ function DrawingCanvas() {
 
   const onNodeClick: NodeMouseHandler = useCallback((_evt, node) => {
     setSelectedNodeId(node.id);
+    setSelectedEdgeId(null);
+  }, []);
+
+  const onEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
   }, []);
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  }, []);
+
+  const updateEdgeData = useCallback((edgeId: string, patch: Partial<PipeEdgeData>) => {
+    setEdges((eds) =>
+      eds.map((e) => {
+        if (e.id !== edgeId) return e;
+        const nextData = { ...e.data, ...patch } as PipeEdgeData & Record<string, unknown>;
+        const updated: Edge = { ...e, data: nextData };
+        // Line type toggle should also flip the arrowhead marker convention
+        // used at creation time (process lines carry a directional arrow,
+        // signal/instrument lines do not).
+        if ('lineType' in patch) {
+          updated.markerEnd =
+            nextData.lineType === 'process' ? { type: MarkerType.ArrowClosed, width: 14, height: 14 } : undefined;
+        }
+        return updated;
+      }),
+    );
   }, []);
 
   const updateNodeData = useCallback((nodeId: string, patch: Partial<EquipmentNodeData>) => {
@@ -207,6 +235,7 @@ function DrawingCanvas() {
   const validation = useMemo(() => validateDiagram(diagramNodes, diagramEdges), [diagramNodes, diagramEdges]);
 
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
+  const selectedEdge = useMemo(() => edges.find((e) => e.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
 
   const connectedPortIds = useMemo(() => {
     const set = new Set<string>();
@@ -220,6 +249,26 @@ function DrawingCanvas() {
 
   return (
     <div className="app-shell">
+      {(selectedNode || selectedEdge) && (
+        <div className="left-rail">
+          {selectedNode ? (
+            <DataSheetPanel
+              nodeId={selectedNode.id}
+              data={selectedNode.data as unknown as EquipmentNodeData}
+              connectedPortIds={connectedPortIds}
+              onUpdateData={updateNodeData}
+              onClose={() => setSelectedNodeId(null)}
+            />
+          ) : selectedEdge ? (
+            <LineDataSheetPanel
+              edgeId={selectedEdge.id}
+              data={selectedEdge.data as unknown as PipeEdgeData}
+              onUpdateData={updateEdgeData}
+              onClose={() => setSelectedEdgeId(null)}
+            />
+          ) : null}
+        </div>
+      )}
       <div className="canvas-wrapper" ref={wrapperRef} onDragOver={onDragOver} onDrop={onDrop}>
         <ReactFlow
           nodes={nodes}
@@ -229,10 +278,12 @@ function DrawingCanvas() {
           onConnect={onConnect}
           onNodeDoubleClick={onNodeDoubleClick}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           connectionMode={ConnectionMode.Loose}
+          deleteKeyCode={['Delete', 'Backspace']}
           snapToGrid
           snapGrid={[GRID, GRID]}
           fitView
@@ -265,17 +316,7 @@ function DrawingCanvas() {
       </div>
       <div className="right-rail">
         <ValidationPanel errors={validation.errors} />
-        {selectedNode ? (
-          <DataSheetPanel
-            nodeId={selectedNode.id}
-            data={selectedNode.data as unknown as EquipmentNodeData}
-            connectedPortIds={connectedPortIds}
-            onUpdateData={updateNodeData}
-            onClose={() => setSelectedNodeId(null)}
-          />
-        ) : (
-          <SymbolPalette />
-        )}
+        <SymbolPalette />
       </div>
     </div>
   );
