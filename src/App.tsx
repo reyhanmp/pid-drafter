@@ -24,7 +24,7 @@ import PipeEdge from './edges/PipeEdge';
 import SymbolPalette from './components/SymbolPalette';
 import ValidationPanel from './components/ValidationPanel';
 import { symbolsByKind } from './symbols';
-import { getEffectivePorts } from './symbols/effectivePorts';
+import { getRenderedPorts } from './symbols/effectivePorts';
 import { toReactFlowHandles } from './symbols/toReactFlowHandles';
 import DataSheetPanel from './components/DataSheetPanel';
 import LineDataSheetPanel from './components/LineDataSheetPanel';
@@ -81,8 +81,8 @@ function DrawingCanvas() {
       const targetSymbol = symbolsByKind[(targetNode.data as unknown as EquipmentNodeData).kind];
       const sourceData = sourceNode.data as unknown as EquipmentNodeData;
       const targetData = targetNode.data as unknown as EquipmentNodeData;
-      const sourcePorts = getEffectivePorts(sourceData.kind, sourceData.ports);
-      const targetPorts = getEffectivePorts(targetData.kind, targetData.ports);
+      const sourcePorts = getRenderedPorts(sourceData.kind, sourceData.ports, sourceData.rotation, sourceData.width, sourceData.height);
+      const targetPorts = getRenderedPorts(targetData.kind, targetData.ports, targetData.rotation, targetData.width, targetData.height);
       const sourcePort = sourcePorts.find((p) => p.id === connection.sourceHandle);
       const targetPort = targetPorts.find((p) => p.id === connection.targetHandle);
       if (!sourceSymbol || !targetSymbol) return;
@@ -143,6 +143,13 @@ function DrawingCanvas() {
           tag: nextTag(symbol.tagPrefix),
           width: symbol.defaultWidth,
           height: symbol.defaultHeight,
+          // Stable callback reference (updateNodeData is a useCallback with
+          // no deps) stashed directly on node.data so EquipmentNode can
+          // drive nozzle-drag repositions through the SAME update path the
+          // DataSheetPanel's numeric/rotation controls use, without a
+          // parallel state-update mechanism. See EquipmentNode.tsx's drag
+          // handlers.
+          __updateNodeData: updateNodeData,
         } satisfies EquipmentNodeData,
       };
       setNodes((nds) => [...nds, newNode]);
@@ -195,13 +202,16 @@ function DrawingCanvas() {
         const nextData = { ...n.data, ...patch };
         const updated: Node = { ...n, data: nextData };
         // If this patch changes the node's effective ports (nozzle
-        // added/removed/repositioned), keep node.handles in lockstep so
-        // React Flow's connection system never reads stale geometry -
-        // see toReactFlowHandles.ts.
-        if ('ports' in patch) {
-          const kind = (nextData as unknown as EquipmentNodeData).kind;
-          const effectivePorts = getEffectivePorts(kind, (nextData as unknown as EquipmentNodeData).ports);
-          updated.handles = toReactFlowHandles(effectivePorts);
+        // added/removed/repositioned/dragged) OR its rotation, keep
+        // node.handles in lockstep so React Flow's connection system
+        // never reads stale geometry - see toReactFlowHandles.ts. Handles
+        // must always be built from the RENDERED (rotated) port set, not
+        // the raw unrotated ports, or connections would land in the
+        // wrong place on a rotated node.
+        if ('ports' in patch || 'rotation' in patch) {
+          const nd = nextData as unknown as EquipmentNodeData;
+          const renderedPorts = getRenderedPorts(nd.kind, nd.ports, nd.rotation, nd.width, nd.height);
+          updated.handles = toReactFlowHandles(renderedPorts);
         }
         return updated;
       }),

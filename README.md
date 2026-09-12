@@ -15,12 +15,14 @@ automatically from this registry — categories and counts require no manual
 maintenance.
 
 - **Vessels**: Vertical Vessel, Horizontal Vessel
+- **Columns**: Tray (Distillation) Column, Packed / Fluid-Contacting Column
+- **Reactors**: CSTR, PFR (Plug Flow Reactor), Jacketed Reactor
 - **Pumps**: Centrifugal Pump
 - **Valves**: Gate Valve, Control Valve, Check Valve, Ball Valve, Relief Valve (PSV), Solenoid Valve
-- **Instruments**: Instrument Bubble (Field), Instrument Bubble (DCS)
+- **Instruments**: Instrument Bubble (Field), Instrument Bubble (DCS), Pressure Gauge (PG)
 - **Agitators**: Agitator
-- **Heat Exchangers**: Heat Exchanger
-- **Piping Accessories**: Concentric Reducer, Restriction Orifice, Strainer, Flange Pair
+- **Heat Exchangers**: Heat Exchanger (shell & tube), Plate Heat Exchanger, Double-Pipe Heat Exchanger
+- **Piping Accessories**: Concentric Reducer, Restriction Orifice, Strainer, Flange Pair, Inline Flow Meter
 - **Signal & Logic**: Relay / Solenoid Pilot (XY)
 - **Terminators**: Vent to Atmosphere, Drain Point, Off-Page / Tie-In Connector
 
@@ -67,6 +69,31 @@ node's handle geometry is declared directly via React Flow's `node.handles`
 field (`src/symbols/toReactFlowHandles.ts`) rather than relying on DOM
 measurement, which eliminates a timing race that used to affect
 freshly-added nozzles.
+
+## Rotation & manual nozzle dragging
+
+Every equipment node supports 90°-snap rotation (0/90/180/270), toggled
+via the "⟳ Rotate 90°" button in the data sheet panel. Rotating a node
+visually spins its geometry (a CSS transform) AND recomputes every port's
+position/direction (`src/symbols/rotatePorts.ts`, composed into effective
+ports via `getRenderedPorts` in `effectivePorts.ts`) — new pipe connections
+made after rotation correctly respect the new orientation. Existing pipes
+connected before a rotation keep their originally-recorded direction (a
+known, acceptable limitation — they don't retroactively re-route).
+
+Nozzles can also be repositioned by directly dragging their flange glyph
+on the canvas (in addition to the numeric x/y/direction controls), while
+the node is selected — the drag snaps to whichever bounding-box edge is
+nearest and recomputes the outward direction accordingly. **Implementation
+note**: the drag handler's SVG element must carry React Flow's `nodrag`
+class, or React Flow's own node-drag listener silently consumes the
+mousedown before our handler ever runs (found via a real repro — this is
+a genuine, non-obvious React Flow gotcha worth knowing about if extending
+this further).
+
+Ports render as a short nozzle stub + perpendicular flange-face tick
+(not a plain dot) — shared rendering logic in `EquipmentNode.tsx`, applies
+uniformly to every symbol.
 
 ## React Compiler
 
