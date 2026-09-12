@@ -79,6 +79,34 @@
   margin-bottom: 4px;
 }
 
+.validation-subsection {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #ddd;
+}
+
+.validation-subheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.validation-badge.warn {
+  background: #fff3cd;
+  color: #8a6400;
+}
+
+.validation-list-warn {
+  color: #8a6400;
+}
+
+.validation-item-warn {
+  margin-bottom: 4px;
+}
+
 /* --- Palette --- */
 .palette {
   flex: 1;

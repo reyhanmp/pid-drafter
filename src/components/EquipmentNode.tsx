@@ -156,6 +156,18 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
       title={label}
       data-testid={`equipment-node-${symbol.kind}`}
     >
+      {d.__loopHighlight && (
+        <div
+          data-testid="loop-highlight-ring"
+          style={{
+            position: 'absolute',
+            inset: -8,
+            border: '2px dashed #cc8800',
+            borderRadius: 8,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       <div
         style={{
           width,

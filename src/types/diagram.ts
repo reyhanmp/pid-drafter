@@ -40,6 +40,15 @@ export interface EquipmentNodeData {
    * schemas evolve per category.
    */
   properties?: Record<string, string>;
+  /**
+   * Transient, App-computed flag (PRD §4.7 instrument loop cross-
+   * referencing) — true when this node is the currently hovered/selected
+   * instrument OR shares its loop number with one. Not persisted;
+   * recomputed every render from tag text, stashed on node.data purely
+   * so EquipmentNode can render a highlight ring without a separate
+   * prop-drilling path (same pattern as `__updateNodeData`).
+   */
+  __loopHighlight?: boolean;
   [key: string]: unknown;
 }
 

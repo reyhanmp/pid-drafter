@@ -29,6 +29,8 @@ import { toReactFlowHandles } from './symbols/toReactFlowHandles';
 import DataSheetPanel from './components/DataSheetPanel';
 import LineDataSheetPanel from './components/LineDataSheetPanel';
 import { validateDiagram, type DiagramEdge, type DiagramNode } from './validation/validateDiagram';
+import { validateSpecCompatibility } from './validation/specValidation';
+import { getLoopMateIds } from './validation/instrumentLoops';
 import type { EquipmentNodeData, PipeEdgeData } from './types/diagram';
 import './App.css';
 
@@ -50,6 +52,7 @@ function DrawingCanvas() {
   const [editingValue, setEditingValue] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -167,6 +170,14 @@ function DrawingCanvas() {
     setSelectedEdgeId(null);
   }, []);
 
+  const onNodeMouseEnter: NodeMouseHandler = useCallback((_evt, node) => {
+    setHoveredNodeId(node.id);
+  }, []);
+
+  const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
+    setHoveredNodeId(null);
+  }, []);
+
   const onEdgeClick: EdgeMouseHandler = useCallback((_evt, edge) => {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
@@ -243,6 +254,43 @@ function DrawingCanvas() {
     [edges],
   );
   const validation = useMemo(() => validateDiagram(diagramNodes, diagramEdges), [diagramNodes, diagramEdges]);
+  const specWarnings = useMemo(() => validateSpecCompatibility(diagramNodes, diagramEdges), [diagramNodes, diagramEdges]);
+
+  /**
+   * Instrument loop cross-referencing (PRD §4.7): purely hover-driven,
+   * per explicit user decision ("hover only — highlight while hovering,
+   * clears on mouse-leave"). Does NOT fall back to node selection —
+   * selecting a node (to open its data sheet) is a persistent state,
+   * unrelated to the transient/exploratory hover signal this feature is
+   * meant to be; falling back to selection would make the highlight
+   * "stick" any time a user opens a data sheet, which is not what was
+   * asked for. Purely derived from tag text via getLoopMateIds — no
+   * separate loop-membership state to maintain.
+   */
+  const activeLoopNodeId = hoveredNodeId;
+  const loopMateIds = useMemo(() => getLoopMateIds(diagramNodes, activeLoopNodeId), [diagramNodes, activeLoopNodeId]);
+
+  /**
+   * Feed loop-highlight state into each node's data so EquipmentNode can
+   * render a highlight ring without a parallel prop-drilling path — same
+   * pattern already used for __updateNodeData. Only nodes that are
+   * currently a loop mate (or the active node itself) get a truthy flag;
+   * everything else stays visually unchanged.
+   */
+  const nodesWithLoopHighlight = useMemo(
+    () =>
+      nodes.map((n) => {
+        const isActive = n.id === activeLoopNodeId && loopMateIds.size > 0;
+        const isMate = loopMateIds.has(n.id);
+        if (!isActive && !isMate) {
+          if (!('__loopHighlight' in n.data)) return n;
+          const { __loopHighlight: _drop, ...rest } = n.data as Record<string, unknown>;
+          return { ...n, data: rest };
+        }
+        return { ...n, data: { ...n.data, __loopHighlight: true } };
+      }),
+    [nodes, activeLoopNodeId, loopMateIds],
+  );
 
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
   const selectedEdge = useMemo(() => edges.find((e) => e.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
@@ -281,13 +329,15 @@ function DrawingCanvas() {
       )}
       <div className="canvas-wrapper" ref={wrapperRef} onDragOver={onDragOver} onDrop={onDrop}>
         <ReactFlow
-          nodes={nodes}
+          nodes={nodesWithLoopHighlight}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeDoubleClick={onNodeDoubleClick}
           onNodeClick={onNodeClick}
+          onNodeMouseEnter={onNodeMouseEnter}
+          onNodeMouseLeave={onNodeMouseLeave}
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
@@ -325,7 +375,7 @@ function DrawingCanvas() {
         )}
       </div>
       <div className="right-rail">
-        <ValidationPanel errors={validation.errors} />
+        <ValidationPanel errors={validation.errors} specWarnings={specWarnings} />
         <SymbolPalette />
       </div>
     </div>
