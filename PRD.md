@@ -1,9 +1,25 @@
 # PID Drafter — Product Requirements Document (v2)
 
-**Status:** Draft for review
+**Status:** Draft for review (revised with industry-research pass)
 **Author:** Hermes (for Reyhan Prajesa)
-**Date:** 2026-09-08
+**Date:** 2026-09-08, revised 2026-09-12
 **Supersedes:** v1 MVP at `~/projects/pid-drafter/` (to be archived, not iterated on)
+
+---
+
+## 0. Revision note (2026-09-12)
+
+Added four new goals/functional requirements after a web-research pass
+comparing how established P&ID products (Siemens COMOS, AVEVA Diagrams,
+ESAIN ESAPRO P&ID, Hexagon Smart P&ID) differentiate themselves from
+generic diagramming tools, cross-checked against user decisions:
+auto-generated engineering lists (§4.6), spec-driven soft validation
+(§4.1), instrument loop cross-referencing (§4.7), and multi-sheet
+diagrams with functional off-page connectors (§4.8, un-deferred from
+the original non-goals list). Real revision-tracking/diffing was
+considered and explicitly rejected — manual rev-block entry remains
+sufficient at this scale. See §2 for the updated goal list and §7,
+item 4 for how each open question was resolved.
 
 ---
 
@@ -39,17 +55,53 @@ not to whatever seemed interesting mid-session.
      actual internal documentation looks (see v1's Unilever-style symbol
      work — dome-top columns, tube-bundle condensers, flag-shaped stream
      tags, orthogonal-only routing — that part was good, carry it forward)
+   - **Spec-driven soft validation (NEW):** when a component's declared
+     material/rating doesn't match the piping spec assigned to the line
+     it's placed on, flag it as a soft warning in the validation panel —
+     visible, not export-blocking. This mirrors how real "intelligent
+     P&ID" tools (industry research, see below) catch spec mismatches
+     while drafting rather than after.
 2. **PDF export that's actually presentable** — colleagues expect PDF,
    not a raw SVG. This is core scope, not a stretch goal.
-3. **Self-hosted permanently on apollopi**, reachable over Tailscale,
+3. **Auto-generated engineering lists (NEW, promoted from industry
+   research)** — line list, valve list, instrument index, equipment
+   list, derived directly from the diagram's actual data (not manually
+   maintained), exportable (CSV/Excel at minimum). This is the single
+   most universal feature separating a real P&ID tool from a generic
+   diagramming tool with process symbols — confirmed by comparing how
+   every established P&ID product (COMOS, AVEVA, ESAPRO, Hexagon
+   Smart P&ID) markets itself, and it's the most direct payoff of
+   having a validity engine at all: once tags/lines are structurally
+   correct, generating a list from them is nearly free.
+4. **Instrument loop cross-referencing (NEW)** — selecting/hovering an
+   instrument tag (e.g. TT-101) highlights other instruments in the
+   same control loop elsewhere on the diagram (TIC-101, TV-101, etc.),
+   inferred from shared loop number, not a separate manually-maintained
+   mapping.
+5. **Multi-sheet diagrams with functional off-page connectors (NEW,
+   un-deferred)** — previously a non-goal; reconsidered given off-page
+   connectors are meaningless without a real target sheet to reference.
+   A diagram can span multiple sheets/pages; an off-page/tie-in
+   connector references a specific sheet + tag, and following it
+   (click-through or at minimum a resolved label showing where it goes)
+   works, not just a generic flag placeholder.
+6. **Self-hosted permanently on apollopi**, reachable over Tailscale,
    same operational pattern as the DWSIM MCP service (systemd, no
    external dependency).
-4. **Extensible architecture** — adding a new symbol type later should
+7. **Extensible architecture** — adding a new symbol type later should
    be a small, contained change (new file/entry), not a scavenger hunt
    across the codebase.
-5. **DEXPI (Proteus XML) export** — kept, but explicitly **low-priority /
-   stretch goal**. Only build this after 1–4 are solid. Do not let it
+8. **DEXPI (Proteus XML) export** — kept, but explicitly **low-priority /
+   stretch goal**. Only build this after 1–7 are solid. Do not let it
    drive architecture decisions.
+
+**Explicitly decided NOT to build (keeps scope from creeping into
+enterprise-PLM territory):**
+- Real revision-tracking/diffing between named revisions with
+  auto-generated revision clouds — a manually-typed rev letter +
+  description in the title block (already in §6) is sufficient; this
+  is standard real drafting practice at small/solo scale and matches
+  how Reyhan actually works, not a gap.
 
 ## 3. Non-Goals (explicit, to prevent v1's scope drift)
 
@@ -61,6 +113,8 @@ not to whatever seemed interesting mid-session.
 - No AutoCAD/DWG export
 - No undo/redo (nice-to-have, explicitly deferred past v2.0)
 - No 3D / isometric anything
+- No automated revision-diffing/revision-cloud generation — manual rev
+  block entry is sufficient (see Goal 1 sidebar above)
 
 ---
 
@@ -81,6 +135,17 @@ not to whatever seemed interesting mid-session.
   symbol regardless of real equipment geometry).
 - Validation panel/sidebar shows all current errors (duplicate tags,
   unconnected lines) live, not just on-demand.
+- **Spec-driven soft validation (NEW).** A line carries an assigned
+  piping spec (material of construction + pressure class — see the line
+  data sheet fields already shipped: `MATERIAL_OF_CONSTRUCTION_OPTIONS`).
+  When a component placed on that line has an incompatible declared
+  material/rating, surface it as a **soft warning** in the validation
+  panel (visible, listed, non-blocking) — distinct from the hard
+  tag-uniqueness/dangling-line errors, which still block export.
+  Real "intelligent P&ID" tools catch this class of error at
+  draft-time rather than after — worth doing here even at solo/single-
+  user scale, since it's cheap once the validity engine and line data
+  sheet already exist.
 
 ### 4.2 Symbol library (extensible core set)
 - Carry forward the Unilever-style visual language validated in v1:
@@ -188,6 +253,51 @@ diagram tool that happens to have process symbols bolted on. Concretely:
 - Repo stays clean/scalable: standard Vite+React+TS project layout,
   no stray reference/debug artifacts committed (v1's gitignored DEXPI
   reference file convention was correct, keep that discipline).
+
+### 4.6 Auto-generated engineering lists (NEW)
+- Derived views over the diagram's existing structured data — **not**
+  a separate hand-maintained dataset. If a list and the diagram ever
+  disagree, the diagram is the source of truth and the list is stale/
+  needs regenerating, never the other way around.
+- **Line list:** one row per pipe/signal line — line number, size,
+  service, spec/MoC, jacketed flag, source tag, destination tag.
+- **Valve list:** one row per valve instance — tag, type (gate/ball/
+  check/control/relief/solenoid), line it's on, size.
+- **Instrument index:** one row per instrument — tag, loop number,
+  function (from the tag prefix, e.g. TT/LIC/PSV), service description.
+- **Equipment list:** one row per non-instrument, non-valve node —
+  tag, type, service/description, key data-sheet fields (design P/T,
+  material, etc.).
+- Each list is a real UI view (e.g. a modal/tab, not just an export
+  format) so Reyhan can sanity-check it before exporting, plus a CSV
+  export button per list.
+- Regenerates live as the diagram changes — no manual "refresh" step
+  that can go stale.
+
+### 4.7 Instrument loop cross-referencing (NEW)
+- Instruments sharing the same loop number (parsed from the tag, e.g.
+  "101" in "TT-101"/"TIC-101"/"TV-101") are considered one loop.
+- Selecting or hovering an instrument highlights every other instrument
+  in the same loop, wherever it is on the current sheet (and, once
+  multi-sheet exists per 4.8, across sheets too).
+- This is inferred automatically from tag/loop-number parsing — no
+  separate manually-maintained loop-membership list to keep in sync.
+
+### 4.8 Multi-sheet diagrams (NEW — un-deferred from v2's original scope)
+- A project can contain multiple sheets/pages, each using the same
+  paper template (4.4) with its own sheet number in the title block
+  (e.g. "SH. 2/3").
+- **Off-page/tie-in connectors reference a real target**: a specific
+  sheet + tag (not a generic unresolved flag glyph). At minimum, the
+  connector's label resolves and displays where it goes (e.g. "TO
+  SHEET 2, LINE 1½"-LPS2-126.02"); ideally, clicking it navigates to
+  that sheet/location.
+- Tag uniqueness (4.1) is enforced **project-wide across all sheets**,
+  not just per-sheet — this is what makes cross-sheet references
+  actually trustworthy rather than a labeling convention with no
+  teeth.
+- Sheet management (add/rename/reorder/delete sheets) lives in a
+  simple sheet-tabs UI, similar in spirit to spreadsheet tabs.
 
 ---
 
@@ -299,13 +409,19 @@ of truth over any generic P&ID software reference material.
    assumed and iterated, doesn't need to block starting the build.
 2. ~~Title block content/format~~ — **Resolved**, see Section 6 above.
 3. No hard deadline given — build proceeds at normal pace, no crunch.
+4. ~~Auto-generated lists / spec validation / loop cross-reference /
+   multi-sheet — worth building?~~ — **Resolved** (2026-09-12, industry
+   research + user confirmation): yes to all four except revision
+   tracking, which stays out of scope. See Goals (§2) and §4.6–4.8.
 
 ---
 
 ## 8. Out of Scope for v2.0 (explicitly deferred, may revisit later)
 
 - Undo/redo
-- DEXPI export (until 4.1–4.4 solid)
-- Multi-page diagrams
+- DEXPI export (until 4.1–4.8 solid)
 - Real ISA-5.1/DEXPI standard certification-level compliance
 - Any collaboration/multi-user feature
+- Automated revision-diffing / auto revision-cloud generation (manual
+  rev block entry is sufficient — see §2 and §3)
+
