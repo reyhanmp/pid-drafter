@@ -279,6 +279,22 @@
   font-family: inherit;
 }
 
+.rotate-btn {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #0066cc;
+  background: #fff;
+  color: #0066cc;
+  cursor: pointer;
+  font-weight: 600;
+  text-align: left;
+}
+
+.rotate-btn:hover {
+  background: #eaf3ff;
+}
+
 .nozzle-editor {
   border-top: 1px solid #ddd;
   padding-top: 10px;

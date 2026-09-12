@@ -76,6 +76,15 @@ export default function DataSheetPanel({ nodeId, data, connectedPortIds, onUpdat
   const ports = getEffectivePorts(data.kind, data.ports);
   const fields = fieldsForCategory(symbol.category);
   const properties = data.properties ?? {};
+  const rotation = data.rotation ?? 0;
+
+  /** Cycles rotation 0 -> 90 -> 180 -> 270 -> 0. updateNodeData already
+   * recomputes node.handles from getRenderedPorts whenever 'rotation' is
+   * in the patch, so this is the only wiring needed on this side. */
+  function rotate90() {
+    const next = ((rotation + 90) % 360) as 0 | 90 | 180 | 270;
+    onUpdateData(nodeId, { rotation: next });
+  }
 
   function setPorts(next: SymbolPort[]) {
     onUpdateData(nodeId, { ports: next });
@@ -119,6 +128,18 @@ export default function DataSheetPanel({ nodeId, data, connectedPortIds, onUpdat
             onChange={(e) => onUpdateData(nodeId, { tag: e.target.value })}
             data-testid="data-sheet-tag-input"
           />
+        </label>
+
+        <label className="data-sheet-field">
+          <span>Rotation</span>
+          <button
+            type="button"
+            className="rotate-btn"
+            onClick={rotate90}
+            data-testid="rotate-90-btn"
+          >
+            ⟳ Rotate 90° (currently {rotation}°)
+          </button>
         </label>
 
         {fields.map((f) => (

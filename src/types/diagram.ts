@@ -25,6 +25,14 @@ export interface EquipmentNodeData {
    */
   ports?: SymbolPort[];
   /**
+   * 90°-increment rotation applied to the symbol's rendered geometry AND
+   * its effective ports (position + direction normal), in clockwise
+   * degrees: 0 | 90 | 180 | 270. Absent/undefined means 0 (unrotated).
+   * See src/symbols/rotatePorts.ts for the rotation math and
+   * src/symbols/effectivePorts.ts for where it's applied.
+   */
+  rotation?: 0 | 90 | 180 | 270;
+  /**
    * Free-form data-sheet fields, keyed by field id (e.g. "designPressure",
    * "npshAvailable"). Field sets differ per equipment category — see
    * src/dataSheet/fieldSchemas.ts for the per-category field definitions.

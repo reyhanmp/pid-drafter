@@ -41,6 +41,8 @@ export interface SymbolPort {
 
 export type SymbolCategory =
   | 'Vessels'
+  | 'Columns'
+  | 'Reactors'
   | 'Pumps'
   | 'Valves'
   | 'Instruments'

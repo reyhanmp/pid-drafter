@@ -29,6 +29,15 @@ import relayDiamond from './relay-diamond';
 import ventTerminator from './vent-terminator';
 import drainTerminator from './drain-terminator';
 import offpageConnector from './offpage-connector';
+import columnTray from './column-tray';
+import columnPacked from './column-packed';
+import reactorCstr from './reactor-cstr';
+import reactorPfr from './reactor-pfr';
+import reactorJacketed from './reactor-jacketed';
+import heatExchangerPlate from './heat-exchanger-plate';
+import heatExchangerDoublePipe from './heat-exchanger-double-pipe';
+import instrumentFlowmeterInline from './instrument-flowmeter-inline';
+import instrumentGaugePressure from './instrument-gauge-pressure';
 
 export const allSymbols: SymbolDefinition[] = [
   vesselVertical,
@@ -52,6 +61,15 @@ export const allSymbols: SymbolDefinition[] = [
   ventTerminator,
   drainTerminator,
   offpageConnector,
+  columnTray,
+  columnPacked,
+  reactorCstr,
+  reactorPfr,
+  reactorJacketed,
+  heatExchangerPlate,
+  heatExchangerDoublePipe,
+  instrumentFlowmeterInline,
+  instrumentGaugePressure,
 ];
 
 /** Lookup table keyed by symbol kind (used by node renderers). */
@@ -62,6 +80,8 @@ export const symbolsByKind: Record<string, SymbolDefinition> = Object.fromEntrie
 /** Declared display order for categories in the palette. */
 export const CATEGORY_ORDER: SymbolCategory[] = [
   'Vessels',
+  'Columns',
+  'Reactors',
   'Pumps',
   'Valves',
   'Instruments',
