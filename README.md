@@ -95,6 +95,25 @@ Ports render as a short nozzle stub + perpendicular flange-face tick
 (not a plain dot) — shared rendering logic in `EquipmentNode.tsx`, applies
 uniformly to every symbol.
 
+## Spec-driven validation & instrument loop cross-referencing (PRD §4.1/§4.7)
+
+**Spec compatibility (soft warning, never export-blocking)**: when a line
+has an assigned material-of-construction spec (line data sheet) and a
+connected valve/vessel/pump/HX/reactor/column has its own declared
+material/rating filled in, `src/validation/specValidation.ts` compares
+them heuristically (coarse material family + ASME pressure class parsed
+from free text) and lists any mismatch in the ValidationPanel's separate
+"Spec Compatibility" section — distinct from the hard tag-uniqueness/
+dangling-line errors, which still block export. A component with no
+material field filled in yet produces no warning (nothing to contradict).
+
+**Instrument loop cross-referencing**: hovering an instrument (tag like
+"TT-101") highlights every other instrument sharing the same loop number
+(parsed from the trailing digits in the tag — `src/validation/instrumentLoops.ts`),
+wherever it sits on the canvas. Purely hover-driven per explicit design —
+it does **not** persist on node selection (opening a node's data sheet
+doesn't keep the highlight on); it clears the moment the mouse leaves.
+
 ## React Compiler
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
