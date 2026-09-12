@@ -3,6 +3,8 @@ import { symbolsByKind } from '../symbols';
 import { getEffectivePorts } from '../symbols/effectivePorts';
 import { fieldsForCategory } from '../dataSheet/fieldSchemas';
 import type { EquipmentNodeData } from '../types/diagram';
+import { isOffpageConnector, type SheetRef } from '../validation/offpageReferences';
+import OffpageTargetPanel from './OffpageTargetPanel';
 
 const CARDINAL_DIRECTIONS: Array<{ label: string; dir: PortDirection }> = [
   { label: '↑ Up', dir: { x: 0, y: -1 } },
@@ -68,9 +70,21 @@ interface DataSheetPanelProps {
   connectedPortIds: Set<string>;
   onUpdateData: (nodeId: string, patch: Partial<EquipmentNodeData>) => void;
   onClose: () => void;
+  /** Every drawing sheet in the project — needed by the off-page target editor (PRD §4.8). */
+  sheets?: SheetRef[];
+  /** The sheet this node currently sits on. */
+  currentSheetId?: string;
 }
 
-export default function DataSheetPanel({ nodeId, data, connectedPortIds, onUpdateData, onClose }: DataSheetPanelProps) {
+export default function DataSheetPanel({
+  nodeId,
+  data,
+  connectedPortIds,
+  onUpdateData,
+  onClose,
+  sheets = [],
+  currentSheetId = '',
+}: DataSheetPanelProps) {
   const symbol = symbolsByKind[data.kind];
   if (!symbol) return null;
   const ports = getEffectivePorts(data.kind, data.ports);
@@ -162,6 +176,16 @@ export default function DataSheetPanel({ nodeId, data, connectedPortIds, onUpdat
             )}
           </label>
         ))}
+
+        {isOffpageConnector(data) && (
+          <OffpageTargetPanel
+            nodeId={nodeId}
+            data={data}
+            sheets={sheets}
+            currentSheetId={currentSheetId}
+            onUpdateData={onUpdateData}
+          />
+        )}
 
         <div className="nozzle-editor" data-testid="nozzle-editor">
           <div className="nozzle-editor-header">

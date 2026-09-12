@@ -58,6 +58,13 @@ export interface SymbolGeometryProps {
   height: number;
   /** Selected/hover styling hook, optional. */
   selected?: boolean;
+  /**
+   * Resolved display label, when the symbol has one that is computed from
+   * project data rather than fixed geometry — used by the off-page/tie-in
+   * connector to draw its resolved target (e.g. "TO SH.2 TT-101") in place
+   * of its neutral placeholder (PRD §4.8).
+   */
+  label?: string;
 }
 
 export interface DexpiMapping {

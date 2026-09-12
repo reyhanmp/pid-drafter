@@ -1,10 +1,5 @@
-.app-shell {
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-}
-
+/* Layout note: the shell + top bar + sheet tabs rules live at the bottom
+   of this file (added with the multi-sheet project structure, PRD 4.8). */
 .canvas-wrapper {
   flex: 1;
   position: relative;
@@ -484,4 +479,297 @@
 .pipe-delete-btn:hover {
   background: #cc4444;
   color: #fff;
+}
+
+/* --- App shell: top bar + body (canvas column + rails) --- */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.canvas-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* --- Project top bar (PRD 4.4) --- */
+.project-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #ccc;
+  background: #f2f4f7;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.topbar-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.topbar-field input {
+  width: 260px;
+  padding: 3px 6px;
+  font-size: 12px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+}
+
+.project-topbar button {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #888;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.project-topbar button:hover {
+  background: #e8ecf2;
+}
+
+.autosave-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #e6efe6;
+  color: #245c24;
+  border: 1px solid #b6d0b6;
+}
+
+.autosave-status.autosave-saving {
+  background: #fdf6e3;
+  color: #7a5c12;
+  border-color: #e0cf9a;
+}
+
+.autosave-status.autosave-unavailable {
+  background: #fdecec;
+  color: #8a2020;
+  border-color: #e2b4b4;
+}
+
+.topbar-note.ok {
+  font-size: 11px;
+  color: #245c24;
+}
+
+.autosave-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 12px;
+  font-size: 11px;
+  background: #fff4d6;
+  border-bottom: 1px solid #e0cf9a;
+  color: #6b4a00;
+}
+
+.autosave-notice button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.topbar-load-errors {
+  flex-basis: 100%;
+  background: #fdecec;
+  border: 1px solid #e2b4b4;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #8a2020;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.topbar-load-errors ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.topbar-dismiss {
+  margin-top: 6px;
+}
+
+/* --- Sheet tabs (PRD 4.8) --- */
+.sheet-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-top: 1px solid #ccc;
+  background: #eceff3;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.sheet-tabs-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+}
+
+.sheet-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: #dfe4ea;
+  border: 1px solid #c3cad3;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sheet-tab:hover {
+  background: #e9edf2;
+}
+
+.sheet-tab.active {
+  background: #fff;
+  border-color: #8a94a2;
+  font-weight: 600;
+}
+
+.sheet-tab.dragging {
+  opacity: 0.5;
+}
+
+.sheet-tab-designator {
+  color: #6a7482;
+  font-weight: 400;
+  font-size: 10px;
+}
+
+.sheet-tab-actions {
+  display: flex;
+  gap: 1px;
+  opacity: 0.35;
+}
+
+.sheet-tab:hover .sheet-tab-actions,
+.sheet-tab.active .sheet-tab-actions {
+  opacity: 1;
+}
+
+.sheet-tab-move,
+.sheet-tab-delete {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 9px;
+  padding: 0 2px;
+  color: #55606e;
+}
+
+.sheet-tab-move:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.sheet-tab-delete:hover {
+  color: #b02020;
+}
+
+.sheet-tab-rename {
+  width: 120px;
+  font-size: 12px;
+  padding: 1px 3px;
+}
+
+.sheet-tab-add {
+  padding: 3px 10px;
+  font-size: 12px;
+  border: 1px solid #8a94a2;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sheet-tabs-hint {
+  font-size: 10px;
+  color: #7a8492;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* --- Off-page connector target editor (PRD 4.8) --- */
+.offpage-target-panel {
+  border-top: 1px solid #e2e2e2;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.offpage-ref-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: #eef2f7;
+  border: 1px solid #cfd7e2;
+  font-size: 11px;
+}
+
+.offpage-ref-preview code {
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.offpage-ref-caption {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6a7482;
+}
+
+.offpage-ref-broken {
+  background: #fdecec;
+  border-color: #e2b4b4;
+}
+
+.offpage-ref-broken code {
+  color: #8a2020;
+  font-weight: 600;
+}
+
+.offpage-ref-resolved {
+  background: #eaf5ea;
+  border-color: #b6d0b6;
+}
+
+.validation-item-locator {
+  font-weight: 600;
+  color: #8a2020;
 }

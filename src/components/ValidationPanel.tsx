@@ -28,11 +28,24 @@ export default function ValidationPanel({
         </span>
       </div>
       {errors.length === 0 ? (
-        <div className="validation-empty">No validity errors. Every tag is unique and every pipe is seated on a declared port.</div>
+        <div className="validation-empty">
+          No validity errors. Every tag is unique across all sheets, every pipe is seated on a declared port, and every
+          off-page connector resolves.
+        </div>
       ) : (
         <ul className="validation-list">
           {errors.map((err, i) => (
             <li key={`${err.kind}-${i}`} className="validation-item" data-testid="validation-error">
+              {err.kind === 'duplicate-tag' && err.sheetNames && err.sheetNames.length > 1 && (
+                <span className="validation-item-locator" data-testid="validation-error-sheets">
+                  [{err.sheetNames.join(' | ')}]{' '}
+                </span>
+              )}
+              {err.kind === 'offpage-broken-reference' && (
+                <span className="validation-item-locator" data-testid="validation-error-sheets">
+                  [broken reference]{' '}
+                </span>
+              )}
               {err.message}
             </li>
           ))}

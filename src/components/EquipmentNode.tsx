@@ -168,6 +168,35 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
           }}
         />
       )}
+      {/*
+        Cross-sheet loop awareness (PRD §4.7 extended by §4.8): loop mates
+        living on OTHER sheets aren't on this canvas to highlight, so the
+        hovered instrument gets a real count/name badge instead of a fake
+        highlight. Only shown while hovering (transient, never persisted).
+      */}
+      {typeof d.__offshetLoopMateCount === 'number' && d.__offshetLoopMateCount > 0 && (
+        <div
+          data-testid="offsheet-loop-indicator"
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: -26,
+            transform: 'translateX(-50%)',
+            whiteSpace: 'nowrap',
+            fontSize: 10,
+            fontFamily: 'monospace',
+            fontWeight: 600,
+            color: '#7a4a00',
+            background: '#fff4d6',
+            border: '1px solid #cc8800',
+            borderRadius: 10,
+            padding: '1px 6px',
+            pointerEvents: 'none',
+          }}
+        >
+          loop also on {d.__offshetLoopSheetNames?.join(', ') || 'other sheet'} ({d.__offshetLoopMateCount})
+        </div>
+      )}
       <div
         style={{
           width,
@@ -177,7 +206,7 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
         }}
         data-testid="equipment-geometry-wrapper"
       >
-        <Geometry width={width} height={height} selected={selected} />
+        <Geometry width={width} height={height} selected={selected} label={d.__resolvedLabel} />
       </div>
       {ports.map((port) => {
         const pos = directionToPosition(port.direction);

@@ -70,6 +70,12 @@ export interface EquipmentNodeData {
    * node's loop mates live, e.g. ["Sheet 2"]. Not persisted.
    */
   __offshetLoopSheetNames?: string[];
+  /**
+   * Transient, App-computed resolved reference label for an off-page
+   * connector, e.g. "TO SH.2 TT-101". Not persisted (see
+   * serialize.ts's sanitizeNodeData).
+   */
+  __resolvedLabel?: string;
   __loopHighlight?: boolean;
   [key: string]: unknown;
 }

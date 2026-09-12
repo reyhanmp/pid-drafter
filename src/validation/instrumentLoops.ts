@@ -58,3 +58,60 @@ export function getLoopMateIds(nodes: LoopNode[], activeNodeId: string | null): 
   }
   return mates;
 }
+
+/** One drawing sheet's worth of loop-eligible nodes, for cross-sheet lookup. */
+export interface SheetLoopSlice {
+  id: string;
+  name: string;
+  nodes: LoopNode[];
+}
+
+export interface ProjectLoopHighlight {
+  /** Ids of loop mates on the SAME sheet as the active node (highlighted inline). */
+  onSheetMateIds: Set<string>;
+  /** How many loop mates live on OTHER sheets (PRD §4.7/§4.8 cross-sheet awareness). */
+  offSheetMateCount: number;
+  /** Names of the other sheets those off-sheet loop mates sit on. */
+  offSheetSheetNames: string[];
+}
+
+/**
+ * Project-wide loop cross-referencing (PRD §4.7 extended by §4.8): loop
+ * membership spans sheets, since a transmitter on sheet 1 and its
+ * controller on sheet 2 are the same control loop. Returns the on-sheet
+ * mates for direct highlighting plus a real count/name list for the
+ * off-sheet ones, so the hovered node can show genuine cross-sheet
+ * awareness even though those nodes are not on the visible canvas.
+ */
+export function getProjectLoopMates(
+  sheets: SheetLoopSlice[],
+  activeSheetId: string | null,
+  activeNodeId: string | null,
+): ProjectLoopHighlight {
+  const result: ProjectLoopHighlight = { onSheetMateIds: new Set(), offSheetMateCount: 0, offSheetSheetNames: [] };
+  if (!activeNodeId) return result;
+
+  const activeSheet = sheets.find((s) => s.id === activeSheetId);
+  const active = activeSheet?.nodes.find((n) => n.id === activeNodeId);
+  if (!active || !isLoopEligible(active)) return result;
+  const loopNumber = parseLoopNumber(active.data.tag);
+  if (!loopNumber) return result;
+
+  const offSheetNames: string[] = [];
+  for (const sheet of sheets) {
+    for (const n of sheet.nodes) {
+      if (sheet.id === activeSheetId && n.id === activeNodeId) continue;
+      if (!isLoopEligible(n)) continue;
+      if (parseLoopNumber(n.data.tag) !== loopNumber) continue;
+      if (sheet.id === activeSheetId) {
+        result.onSheetMateIds.add(n.id);
+      } else {
+        result.offSheetMateCount += 1;
+        if (!offSheetNames.includes(sheet.name)) offSheetNames.push(sheet.name);
+      }
+    }
+  }
+  result.offSheetSheetNames = offSheetNames;
+  return result;
+}
+
