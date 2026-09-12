@@ -48,6 +48,28 @@ export interface EquipmentNodeData {
    * so EquipmentNode can render a highlight ring without a separate
    * prop-drilling path (same pattern as `__updateNodeData`).
    */
+  /**
+   * Off-page / tie-in connector target (PRD §4.8) — only meaningful on
+   * nodes whose `kind` is 'offpage-connector'. `offpageTargetSheetId` is a
+   * ProjectSheet.id (a DRAWING sheet, not a data sheet); `offpageTargetTag`
+   * is the equipment/instrument tag that connector ties into on that sheet.
+   * A connector with both set and resolvable renders "TO SH.2 TT-101"; a
+   * connector whose target sheet/tag no longer exists is a hard validation
+   * error (see src/validation/offpageReferences.ts).
+   */
+  offpageTargetSheetId?: string;
+  offpageTargetTag?: string;
+  /**
+   * Transient, App-computed flag (PRD §4.7 cross-sheet instrument loop
+   * cross-referencing) — the number of loop mates for this hovered node
+   * that live on a DIFFERENT sheet. Not persisted.
+   */
+  __offshetLoopMateCount?: number;
+  /**
+   * Transient, App-computed list of the other sheets where this hovered
+   * node's loop mates live, e.g. ["Sheet 2"]. Not persisted.
+   */
+  __offshetLoopSheetNames?: string[];
   __loopHighlight?: boolean;
   [key: string]: unknown;
 }
