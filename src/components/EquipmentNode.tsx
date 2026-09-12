@@ -2,7 +2,7 @@ import { memo, useCallback, useRef } from 'react';
 import { Handle, useReactFlow, type NodeProps } from '@xyflow/react';
 import { symbolsByKind } from '../symbols';
 import { getRenderedPorts, normalizeRotation } from '../symbols/effectivePorts';
-import { HANDLE_SIZE, directionToPosition, handleOffset } from '../symbols/handleGeometry';
+import { HANDLE_SIZE, directionToPosition, handleOffsetFromPort } from '../symbols/handleGeometry';
 import type { PortDirection } from '../symbols/types';
 import type { EquipmentNodeData } from '../types/diagram';
 
@@ -219,7 +219,7 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
         // React Flow anchors the pipe at the handle's OUTER edge, so the
         // box is shifted off the port point such that the anchor — and
         // therefore the pipe endpoint — equals the port point exactly.
-        const handleBox = handleOffset(pos, port.x, port.y, HANDLE_SIZE);
+        const handleBox = handleOffsetFromPort(pos, port.x, port.y, HANDLE_SIZE);
         return (
           <div key={port.id} style={{ position: 'absolute', left: port.x, top: port.y, transform: 'translate(-50%, -50%)' }}>
             {/* Flange stub + tick glyph — this is the DRAG hit-target for

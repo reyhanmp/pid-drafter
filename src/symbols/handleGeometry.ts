@@ -71,3 +71,29 @@ export function handleOffset(
       return { left: portX - size, top: portY - size / 2 };
   }
 }
+
+/**
+ * `handleOffset`, re-expressed RELATIVE to a container that is itself
+ * already positioned at the port point (the per-port wrapper div in
+ * EquipmentNode.tsx, which sits at `left: port.x, top: port.y`).
+ *
+ * Use `handleOffset` for React Flow's DECLARED `node.handles` geometry —
+ * those coordinates are node-local absolute, measured from the node's
+ * own top-left. Use THIS for the rendered <Handle>, whose containing
+ * block is the port wrapper, not the node.
+ *
+ * Getting this wrong is a silent 2x position error: the handle lands at
+ * `2 * port` (e.g. a port at (45,180) renders its handle at (86,352)),
+ * so React Flow anchors the pipe far from the visible nozzle while the
+ * flange glyph stays perfectly centred — a confusing, half-correct
+ * failure that a flange-only check will not catch.
+ */
+export function handleOffsetFromPort(
+  position: Position,
+  portX: number,
+  portY: number,
+  size: number = HANDLE_SIZE,
+): { left: number; top: number } {
+  const abs = handleOffset(position, portX, portY, size);
+  return { left: abs.left - portX, top: abs.top - portY };
+}
