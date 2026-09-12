@@ -1,17 +1,10 @@
 import { memo, useCallback, useRef } from 'react';
-import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react';
+import { Handle, useReactFlow, type NodeProps } from '@xyflow/react';
 import { symbolsByKind } from '../symbols';
 import { getRenderedPorts, normalizeRotation } from '../symbols/effectivePorts';
+import { HANDLE_SIZE, directionToPosition, handleOffset } from '../symbols/handleGeometry';
 import type { PortDirection } from '../symbols/types';
 import type { EquipmentNodeData } from '../types/diagram';
-
-/** Map a port's directional normal to react-flow's Handle Position enum. */
-function directionToPosition(dir: PortDirection): Position {
-  if (Math.abs(dir.x) > Math.abs(dir.y)) {
-    return dir.x < 0 ? Position.Left : Position.Right;
-  }
-  return dir.y < 0 ? Position.Top : Position.Bottom;
-}
 
 /** Length of the flange stub drawn outward from the port point, in px. */
 const STUB_LENGTH = 9;
@@ -222,6 +215,11 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
         const perpY = port.direction.x;
         const svgSize = (STUB_LENGTH + FLANGE_TICK_HALF) * 2 + 4;
         const svgCenter = svgSize / 2;
+        // Canonical handle offset (see src/symbols/handleGeometry.ts):
+        // React Flow anchors the pipe at the handle's OUTER edge, so the
+        // box is shifted off the port point such that the anchor — and
+        // therefore the pipe endpoint — equals the port point exactly.
+        const handleBox = handleOffset(pos, port.x, port.y, HANDLE_SIZE);
         return (
           <div key={port.id} style={{ position: 'absolute', left: port.x, top: port.y, transform: 'translate(-50%, -50%)' }}>
             {/* Flange stub + tick glyph — this is the DRAG hit-target for
@@ -266,9 +264,19 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
                 strokeWidth={2}
               />
             </svg>
-            {/* Real connection Handle — small dot at the port base where
-                the flange meets the equipment boundary. Its own
-                mousedown/connect behavior is untouched by React Flow. */}
+            {/* Real connection Handle — one per declared port, sized and
+                offset with the SAME canonical numbers the node's declared
+                handle geometry uses (src/symbols/handleGeometry.ts), so
+                React Flow's Position-based anchor lands precisely on the
+                port point: pipe endpoint == flange glyph center ==
+                declared port. Its own mousedown/connect behavior is
+                untouched by React Flow.
+
+                NOTE: the JSX `position` prop only adds the
+                `.react-flow__handle-<pos>` class; those classes' CSS
+                (top/left/bottom/right + transform) would place the box
+                relative to the container, so it is neutralised here with
+                explicit left/top + `transform: none`. */}
             <Handle
               id={port.id}
               type="source"
@@ -276,12 +284,15 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
               isConnectableStart
               isConnectableEnd
               style={{
-                position: 'relative',
-                left: 0,
-                top: 0,
+                position: 'absolute',
+                margin: 0,
+                width: HANDLE_SIZE,
+                height: HANDLE_SIZE,
+                left: handleBox.left,
+                top: handleBox.top,
+                right: 'auto',
+                bottom: 'auto',
                 transform: 'none',
-                width: 6,
-                height: 6,
                 background: port.kind === 'signal' ? '#888' : '#1a1a1a',
                 border: '1px solid #fff',
               }}

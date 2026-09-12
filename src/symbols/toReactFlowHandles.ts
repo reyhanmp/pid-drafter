@@ -14,18 +14,19 @@
  * entirely: React Flow reads handle geometry straight from data we
  * control, so it's always in sync with what we just set, no
  * measurement step and no timing window at all.
+ *
+ * CRITICAL: the declared geometry must be pixel-identical to the
+ * rendered <Handle> element (same size, same offset) or connections
+ * snap to the wrong spot. Both sides therefore take their numbers from
+ * `handleGeometry.ts` — see `handleOffset()` there for the
+ * Position-based anchoring math this must match. React Flow re-measures
+ * from the DOM later anyway (ResizeObserver -> updateNodeInternals) and
+ * the rendered element is positioned with the very same offset, so the
+ * declared and measured values converge instead of fighting.
  */
 import type { Position } from '@xyflow/react';
-import type { PortDirection, SymbolPort } from './types';
-
-const HANDLE_SIZE = 8; // matches the visual <Handle> box size in EquipmentNode.tsx
-
-export function directionToPosition(dir: PortDirection): Position {
-  if (Math.abs(dir.x) > Math.abs(dir.y)) {
-    return (dir.x < 0 ? 'left' : 'right') as Position;
-  }
-  return (dir.y < 0 ? 'top' : 'bottom') as Position;
-}
+import { HANDLE_SIZE, directionToPosition, handleOffset } from './handleGeometry';
+import type { SymbolPort } from './types';
 
 export interface ReactFlowNodeHandle {
   id: string;
@@ -37,18 +38,20 @@ export interface ReactFlowNodeHandle {
   height: number;
 }
 
+export { directionToPosition };
+
 export function toReactFlowHandles(ports: SymbolPort[]): ReactFlowNodeHandle[] {
-  return ports.map((port) => ({
-    id: port.id,
-    // React Flow's own DOM measurement records the handle's top-left
-    // corner (post-transform); our port.x/y are the *center* point (the
-    // <Handle> div is centered on it via `transform: translate(-50%,-50%)`),
-    // so convert center -> top-left the same way here.
-    x: port.x - HANDLE_SIZE / 2,
-    y: port.y - HANDLE_SIZE / 2,
-    position: directionToPosition(port.direction),
-    type: 'source',
-    width: HANDLE_SIZE,
-    height: HANDLE_SIZE,
-  }));
+  return ports.map((port) => {
+    const position = directionToPosition(port.direction);
+    const { left, top } = handleOffset(position, port.x, port.y, HANDLE_SIZE);
+    return {
+      id: port.id,
+      x: left,
+      y: top,
+      position,
+      type: 'source',
+      width: HANDLE_SIZE,
+      height: HANDLE_SIZE,
+    };
+  });
 }
