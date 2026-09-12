@@ -12,6 +12,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import EquipmentNode from './components/EquipmentNode';
 import PipeEdge from './edges/PipeEdge';
+import PipeConnectionLine from './edges/PipeConnectionLine';
 import SymbolPalette from './components/SymbolPalette';
 import ValidationPanel from './components/ValidationPanel';
 import DataSheetPanel from './components/DataSheetPanel';
@@ -365,6 +366,7 @@ function DrawingCanvas() {
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
                 connectionMode={ConnectionMode.Loose}
+                connectionLineComponent={PipeConnectionLine}
                 deleteKeyCode={['Delete', 'Backspace']}
                 snapToGrid
                 snapGrid={[GRID, GRID]}

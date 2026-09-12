@@ -14,6 +14,11 @@ export interface RoutePoint {
 const STUB = 20; // minimum straight run out of a port before turning
 const ALIGN_TOLERANCE = 6; // px: ports within this offset are treated as aligned (avoids a visible micro-jog)
 
+/** Exported so the in-progress connection preview (PipeConnectionLine.tsx)
+ *  stubs out of a port by the exact same distance the finished pipe does —
+ *  otherwise the preview visibly changes shape the moment you release. */
+export const PIPE_STUB = STUB;
+
 /**
  * Build an orthogonal (Manhattan) route from `start` (leaving along
  * `startDir`) to `end` (arriving along `endDir`, i.e. entering the port
