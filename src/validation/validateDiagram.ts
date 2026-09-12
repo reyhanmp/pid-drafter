@@ -79,6 +79,13 @@ function checkPortConnections(nodes: DiagramNode[], edges: DiagramEdge[]): Valid
   const errors: ValidationError[] = [];
 
   for (const edge of edges) {
+    // FREE LINE exemption (explicit user decision): a line drawn into
+    // empty space has no nozzles by definition, so it is not a dangling
+    // pipe and must not be reported. Flagged explicitly on the edge data
+    // rather than inferred, so this stays a deliberate, documented
+    // carve-out from PRD §4.1 rather than a hole the engine can't see.
+    if ((edge.data as Record<string, unknown> | undefined)?.freePipe === true) continue;
+
     const problems: string[] = [];
 
     const sourceNode = nodeById.get(edge.source);

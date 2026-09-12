@@ -8,11 +8,13 @@ import {
   useReactFlow,
   type NodeMouseHandler,
   type EdgeMouseHandler,
+  type FinalConnectionState,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import EquipmentNode from './components/EquipmentNode';
 import PipeEdge from './edges/PipeEdge';
 import PipeConnectionLine from './edges/PipeConnectionLine';
+import FreeLineLayer from './components/FreeLineLayer';
 import SymbolPalette from './components/SymbolPalette';
 import ValidationPanel from './components/ValidationPanel';
 import DataSheetPanel from './components/DataSheetPanel';
@@ -58,6 +60,8 @@ function DrawingCanvas() {
     commitTagEdit,
     replaceProject,
     addNodeFromSymbol,
+    addFreeLine,
+    removeEdge,
     autosaveNotice,
     dismissAutosaveNotice,
   } = store;
@@ -65,11 +69,28 @@ function DrawingCanvas() {
   const nodes = activeSheet?.nodes ?? [];
   const edges = activeSheet?.edges ?? [];
 
+  /**
+   * Free lines have no node endpoints, so they cannot be react-flow edges
+   * (react-flow requires a source AND target handle). They are split out
+   * here: `pipedEdges` goes to <ReactFlow>, `freeLines` renders through
+   * the FreeLineLayer overlay in the same coordinate system.
+   */
+  const freeLines = useMemo(
+    () => edges.filter((e) => (e.data as PipeEdgeData | undefined)?.freePipe === true),
+    [edges],
+  );
+  const pipedEdges = useMemo(
+    () => edges.filter((e) => (e.data as PipeEdgeData | undefined)?.freePipe !== true),
+    [edges],
+  );
+
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  /** Selected free line (overlay-rendered; not a react-flow edge selection). */
+  const [selectedFreeLineId, setSelectedFreeLineId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -85,6 +106,7 @@ function DrawingCanvas() {
       setSelectedEdgeId(null);
       setEditingNodeId(null);
       setHoveredNodeId(null);
+      setSelectedFreeLineId(null);
     },
     [setActiveSheet],
   );
@@ -111,6 +133,31 @@ function DrawingCanvas() {
   );
 
   const handleConnect = useCallback((connection: Parameters<typeof onConnect>[0]) => onConnect(connection, nodes), [onConnect, nodes]);
+
+  /**
+   * Releasing a connection drag in EMPTY SPACE draws a FREE LINE
+   * (explicit user decision): a plain line attached to no nozzle, which
+   * the validity engine deliberately does not police.
+   *
+   * `onConnect` fires only when both ends land on a declared port; this
+   * handles the other case. A drag that ended on a node/handle but was
+   * rejected is NOT a free line — only a drop on bare canvas is.
+   */
+  const handleConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
+      if (state.isValid) return;             // a seated pipe was created
+      if (!state.from || !state.fromNode) return;
+      const target = event.target as HTMLElement | null;
+      if (!target?.classList?.contains('react-flow__pane')) return;
+
+      const end = screenToFlowPosition({
+        x: (event as MouseEvent).clientX,
+        y: (event as MouseEvent).clientY,
+      });
+      addFreeLine({ x: state.from.x, y: state.from.y }, { x: end.x, y: end.y });
+    },
+    [addFreeLine, screenToFlowPosition],
+  );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -353,10 +400,11 @@ function DrawingCanvas() {
             <div className="canvas-wrapper" ref={wrapperRef} onDragOver={onDragOver} onDrop={onDrop}>
               <ReactFlow
                 nodes={nodesWithHighlights}
-                edges={edges}
+                edges={pipedEdges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={handleConnect}
+                onConnectEnd={handleConnectEnd}
                 onNodeDoubleClick={onNodeDoubleClick}
                 onNodeClick={onNodeClick}
                 onNodeMouseEnter={onNodeMouseEnter}
@@ -375,6 +423,13 @@ function DrawingCanvas() {
               >
                 <Background gap={GRID} />
                 <Controls />
+                <FreeLineLayer
+                  lines={freeLines.map((e) => ({ id: e.id, data: e.data as PipeEdgeData }))}
+                  selectedId={selectedFreeLineId}
+                  onSelect={setSelectedFreeLineId}
+                  onDelete={removeEdge}
+                />
+
               </ReactFlow>
               {editingNodeId && (
                 <div className="tag-edit-overlay">

@@ -75,6 +75,15 @@ export interface ProjectStore {
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection, activeNodes: Node[]) => void;
   updateNodeData: (nodeId: string, patch: Partial<EquipmentNodeData>) => void;
+  /**
+   * Add a FREE LINE (drawn into empty space, no nozzles). Returns its id.
+   * Stored as an edge with data.freePipe so selection/delete/save work,
+   * but filtered out of what react-flow renders and exempted from the
+   * validity engine.
+   */
+  addFreeLine: (start: { x: number; y: number }, end: { x: number; y: number }) => string;
+  /** Remove any line (pipe, signal line, or free line) by id. */
+  removeEdge: (edgeId: string) => void;
   updateEdgeData: (edgeId: string, patch: Partial<PipeEdgeData>) => void;
   commitTagEdit: (nodeId: string, tag: string) => void;
 
@@ -168,6 +177,55 @@ export function useProject(): ProjectStore {
         } satisfies PipeEdgeData & Record<string, unknown>,
       };
       patchActiveSheet((s) => ({ ...s, edges: addEdge(newEdge, s.edges) }));
+    },
+    [patchActiveSheet],
+  );
+
+  /**
+   * Add a FREE LINE: a line drawn into empty space, attached to no
+   * nozzle (explicit user decision — see PipeEdgeData.freePipe).
+   *
+   * It is stored as an ordinary edge on the sheet so selection, deletion,
+   * autosave and JSON save/load all work unchanged, but carries explicit
+   * geometry and is filtered OUT of what <ReactFlow> renders, because
+   * react-flow edges require both endpoints to be node handles. The
+   * overlay (components/FreeLineLayer.tsx) draws it inside the viewport
+   * instead. The validity engine skips it via the freePipe flag.
+   */
+  const addFreeLine = useCallback(
+    (start: { x: number; y: number }, end: { x: number; y: number }) => {
+      const id = `freeline-${Date.now()}-${Math.round(start.x)}-${Math.round(start.y)}`;
+      const edge: Edge = {
+        id,
+        // react-flow requires non-null source/target strings; these are
+        // inert placeholders, never resolved, because this edge is
+        // filtered out before it reaches the canvas.
+        source: '',
+        target: '',
+        type: 'free-line',
+        data: {
+          lineType: 'process',
+          freePipe: true,
+          freeStart: start,
+          freeEnd: end,
+        } satisfies PipeEdgeData & Record<string, unknown>,
+      };
+      patchActiveSheet((s) => ({ ...s, edges: [...s.edges, edge] }));
+      return id;
+    },
+    [patchActiveSheet],
+  );
+
+  /**
+   * Remove a pipe/signal/free line by id. Free lines ACTUALLY need this:
+   * they are filtered out of what react-flow renders, so the usual
+   * useReactFlow().setEdges() delete path cannot see them (it operates on
+   * react-flow's own internal edge list). The project store is the single
+   * source of truth for both, so deletion goes through here.
+   */
+  const removeEdge = useCallback(
+    (edgeId: string) => {
+      patchActiveSheet((s) => ({ ...s, edges: s.edges.filter((e) => e.id !== edgeId) }));
     },
     [patchActiveSheet],
   );
@@ -386,6 +444,8 @@ export function useProject(): ProjectStore {
     onConnect,
     updateNodeData,
     updateEdgeData,
+    addFreeLine,
+    removeEdge,
     commitTagEdit,
     replaceProject,
     addNodeFromSymbol,

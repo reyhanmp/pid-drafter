@@ -89,6 +89,27 @@ export interface ResolvedPort extends SymbolPort {
 export interface PipeEdgeData {
   /** 'process' (solid) or 'signal' (dashed) — mirrors ISA line convention. */
   lineType: 'process' | 'signal';
+  /**
+   * FREE LINE (explicit user decision) — a line drawn by releasing the
+   * drag in empty space, attached to no nozzle at either end.
+   *
+   * Deliberately an EXPLICIT flag rather than "inferred from a missing
+   * handle", so the distinction is unambiguous, survives JSON round-trip,
+   * and the validity engine can exempt these lines with one early return
+   * (see validation/validateDiagram.ts). A free line is a deliberate
+   * carve-out from PRD §4.1's "every pipe is seated on a declared port"
+   * rule: without this flag the engine raises 'unconnected-pipe'.
+   *
+   * When true, `freeStart`/`freeEnd` carry the geometry (flow coordinates)
+   * and the edge is NOT handed to <ReactFlow> — react-flow requires both
+   * endpoints to be node handles, so free lines render through an overlay
+   * instead (see components/FreeLineLayer.tsx).
+   */
+  freePipe?: boolean;
+  /** Start point of a free line, in flow coordinates. */
+  freeStart?: { x: number; y: number };
+  /** End point of a free line, in flow coordinates. */
+  freeEnd?: { x: number; y: number };
   /** Line number label shown along the pipe, optional in this phase. */
   lineNumber?: string;
   /** Free-text descriptive name, e.g. "Feed to Reactor". */

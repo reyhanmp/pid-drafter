@@ -199,6 +199,23 @@ function validateEdge(raw: unknown, where: string, nodeIds: Set<string>): string
   if (!raw || typeof raw !== 'object') return [`${where}: not an object`];
   const e = raw as Record<string, unknown>;
 
+  // FREE LINE: attached to NO equipment, so it has no source/target node
+  // ids and no handles. This must be checked BEFORE the node-id rules
+  // below, otherwise a project containing a free line fails to load
+  // entirely (caught by scripts/verify-freeline.cjs: "missing source
+  // equipment id" for a perfectly valid free line).
+  const freeData = e.data as Record<string, unknown> | undefined;
+  if (freeData?.freePipe === true) {
+    if (typeof e.id !== 'string' || !e.id) errs.push(`${where}: missing pipe id`);
+    const badPoint = (v: unknown) =>
+      !v || typeof v !== 'object' ||
+      !Number.isFinite((v as Record<string, unknown>).x) ||
+      !Number.isFinite((v as Record<string, unknown>).y);
+    if (badPoint(freeData.freeStart)) errs.push(`${where}: free line is missing valid start coordinates`);
+    if (badPoint(freeData.freeEnd)) errs.push(`${where}: free line is missing valid end coordinates`);
+    return errs;
+  }
+
   if (typeof e.id !== 'string' || !e.id) errs.push(`${where}: missing pipe id`);
   if (typeof e.source !== 'string' || !e.source) errs.push(`${where}: missing source equipment id`);
   if (typeof e.target !== 'string' || !e.target) errs.push(`${where}: missing target equipment id`);
@@ -212,6 +229,7 @@ function validateEdge(raw: unknown, where: string, nodeIds: Set<string>): string
   if (data && data.lineType !== undefined && data.lineType !== 'process' && data.lineType !== 'signal') {
     errs.push(`${where}: line type must be "process" (pipe) or "signal" (signal line)`);
   }
+
   return errs;
 }
 
