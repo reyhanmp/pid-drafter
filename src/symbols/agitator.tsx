@@ -6,8 +6,11 @@ function AgitatorGeometry({ width, height }: { width: number; height: number }) 
   const motorW = width * 0.6;
   const motorH = height * 0.28;
   const cx = width / 2;
-  const shaftBottom = height - height * 0.12;
-  const bladeY = shaftBottom - height * 0.16;
+  // Blade glyph position is independent of the shaft length so the
+  // mixer visual stays put; the SHAFT itself runs all the way to the
+  // box bottom, because that is where the agitator enters the vessel.
+  // The `mount` port sits on that shaft end, so the ink must reach it.
+  const bladeY = height * 0.72;
   const bladeHalfW = width * 0.22;
 
   return (
@@ -23,7 +26,7 @@ function AgitatorGeometry({ width, height }: { width: number; height: number }) 
         strokeWidth={LINE_WEIGHT.medium}
       />
       {/* drive shaft */}
-      <line x1={cx} y1={motorH} x2={cx} y2={shaftBottom} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
+      <line x1={cx} y1={motorH} x2={cx} y2={height} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
       {/* impeller blade glyph */}
       <line
         x1={cx - bladeHalfW}

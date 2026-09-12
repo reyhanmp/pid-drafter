@@ -12,8 +12,11 @@ function ValveSolenoidGeometry({ width, height }: { width: number; height: numbe
   const midY = bowtieY + bowtieH / 2;
   const cx = width / 2;
   const boxSize = 15;
-  const stemTopY = bowtieY * 0.55;
-  const boxY = stemTopY - boxSize;
+  // Solenoid box top sits ON y=0 so the declared `signal` port at (25,0)
+  // lands on the box outline. Previously boxY was 3.15, leaving the
+  // signal nozzle 3.15px above the box in empty space.
+  const boxY = 0;
+  const stemTopY = boxY + boxSize;
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>

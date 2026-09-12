@@ -10,8 +10,14 @@ function ValveControlGeometry({ width, height }: { width: number; height: number
   const bowtieH = height * 0.4;
   const bowtieY = height - bowtieH;
   const midY = bowtieY + bowtieH / 2;
-  const stemTopY = bowtieH * 0.35;
-  const actuatorR = width * 0.28;
+  const actuatorR = width * 0.16;
+  // Actuator circle must sit fully INSIDE the 60x70 box, with its top on
+  // y=0 — the `signal` port is declared at (30,0) and must land on the
+  // actuator outline, not in empty space. Previously cy was negative
+  // (stemTopY - actuatorR*0.6 with a short stem), so the top third of
+  // the circle was drawn off-canvas and the signal nozzle floated.
+  const actuatorCy = actuatorR;
+  const stemTopY = actuatorCy + actuatorR;
   const cx = width / 2;
 
   return (
@@ -29,12 +35,12 @@ function ValveControlGeometry({ width, height }: { width: number; height: number
         stroke={STROKE}
         strokeWidth={LINE_WEIGHT.thin}
       />
-      {/* actuator stem */}
+      {/* actuator stem, from the bowtie up to the diaphragm circle */}
       <line x1={cx} y1={midY} x2={cx} y2={stemTopY} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
-      {/* actuator (diaphragm) circle */}
+      {/* actuator (diaphragm) circle — top tangent to y=0 */}
       <circle
         cx={cx}
-        cy={stemTopY - actuatorR * 0.6}
+        cy={actuatorCy}
         r={actuatorR}
         fill={FILL_NONE}
         stroke={STROKE}

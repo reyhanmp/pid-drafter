@@ -21,6 +21,11 @@ function StrainerGeometry({ width, height }: { width: number; height: number }) 
       />
       <line x1={x0} y1={y0} x2={x1} y2={y1} stroke={STROKE} strokeWidth={1} />
       <line x1={x1} y1={y0} x2={x0} y2={y1} stroke={STROKE} strokeWidth={1} />
+      {/* centerline stubs out to the declared inlet/outlet ports: the
+          basket box is inset 4px, so without these the ports sit 4px
+          off the drawn outline in empty space. */}
+      <line x1={0} y1={height / 2} x2={x0} y2={height / 2} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
+      <line x1={x1} y1={height / 2} x2={width} y2={height / 2} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
     </svg>
   );
 }

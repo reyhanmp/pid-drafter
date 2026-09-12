@@ -15,7 +15,6 @@ function ValveReliefGeometry({ width, height }: { width: number; height: number 
   const bonnetH = height * 0.18;
   const bonnetW = width * 0.5;
   const bonnetY = bowtieY - bonnetH;
-  const stemTopY = bonnetY * 0.15;
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
@@ -49,8 +48,15 @@ function ValveReliefGeometry({ width, height }: { width: number; height: number 
         stroke={STROKE}
         strokeWidth={1}
       />
-      {/* open vent stub going up, no cap */}
-      <line x1={cx} y1={bonnetY} x2={cx} y2={stemTopY} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
+      {/* open vent stub going up to the declared vent port at y=0 —
+          previously it stopped at stemTopY (y=5.04), leaving the nozzle
+          5px above the ink. */}
+      <line x1={cx} y1={bonnetY} x2={cx} y2={0} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
+      {/* branch inlet stub: the bowtie's closed path leaves a notch at
+          bottom-centre (ink only at the x=0 / x=width corners), so the
+          declared inlet at (cx, height) sat ~10px off any outline. This
+          stub runs from the inlet port up to the bowtie waist. */}
+      <line x1={cx} y1={height} x2={cx} y2={bowtieY + bowtieH / 2} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
     </svg>
   );
 }
