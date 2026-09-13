@@ -31,27 +31,35 @@ area.seq tag form, ISA-5.1 bubble layout, `ø1 1/2" ANSI 150#` nozzles)
 are industry practice and remain fully documented; a placeholder for the
 document that happened to be the reference costs the reader nothing.
 
-**What this does and does not cover** (measured, not assumed):
+**Scope of the redaction — the whole history.** Published history was
+rewritten (`git filter-branch` over every commit, tree and message), then the
+pre-rewrite objects were dropped and garbage-collected, and the result was
+force-pushed. Public history was replaced rather than amended.
 
-- *Covered:* the current tree, every future commit, and the commit MESSAGES
-  of the previously-unpublished commits. Those messages were rewritten with
-  `git filter-branch --msg-filter` before the first push of this work, because
-  two of them named the drawing and quoted real area codes in their bodies —
-  publishing them would have made the redaction pointless.
-- *Not covered:* the file CONTENTS of the earlier, previously-published
-  commits. Their diffs still contain the original identifiers, so the strings
-  remain reachable by checking out an old revision. They also survive in the
-  old `origin/main` tip, which is unreferenced on the remote now but still
-  fetchable by SHA.
-- *Also not covered:* one 2026-09-10 commit subject that names the client.
-  It was already published at the time of writing.
+This means the identifiers are gone from **every commit**, not just the tip.
+The one deliberate exception is the sentence in §1 stating the author's own
+employment — that is a fact about the author, not a reference to a client
+document, and blanking it would misstate his own CV.
 
-Removing the remaining traces means rewriting published history and
-force-pushing over it. That was not done unilaterally here: it invalidates
-every SHA anyone may have referenced, and the cost is not obviously worth
-it given the drawing itself was never committed. If it matters, it should be
-a deliberate decision, and the most reliable route is to delete and re-create
-the repository from the current tree rather than rewrite 31 commits in place.
+**What this cost.** Force-pushing rewrites every commit hash, so any SHA in
+an existing reference, fork, or clone is now invalid. Two things follow, and
+both are worth knowing before contributing:
+
+- **Pre-existing forks and clones still hold the old objects.** A force-push
+  cannot reach into someone else's clone. There were no forks at the time of
+  writing; if that changes, those copies are not covered by this.
+- **GitHub may retain the old objects** for some time after a force-push,
+  reachable by SHA, until its own garbage collection runs. This is not
+  something the repository can control from the client side. If that
+  exposure matters, the reliable remedy is to **delete and re-create the
+  repository from the current tree**, which starts from clean history
+  rather than asking the host to forget.
+
+**Verification.** The published clone was fetched fresh and every commit
+scanned, tree and message, for both the document identifier and the real area
+codes: 0 hits. The tip tree is byte-identical to the pre-rewrite tip, so the
+history rewrite changed no file content — only the identifier strings inside
+it.
 
 ## 0a. Revision note (2026-09-13, three commits)
 
