@@ -4,6 +4,7 @@ import { symbolsByKind } from '../symbols';
 import { getEffectivePorts } from '../symbols/effectivePorts';
 import { fieldsForKind } from '../dataSheet/fieldSchemas';
 import type { EquipmentNodeData } from '../types/diagram';
+import { NOZZLE_SIZE_OPTIONS, NOZZLE_RATING_OPTIONS } from '../types/diagram';
 import { isOffpageConnector, type SheetRef } from '../validation/offpageReferences';
 import { readIsaTag, describeFunctionCode, suggestedFunctionCodes } from '../validation/isaTags';
 import OffpageTargetPanel from './OffpageTargetPanel';
@@ -158,6 +159,19 @@ export default function DataSheetPanel({
       </div>
 
       <div className="data-sheet-body">
+        {/* Shared suggestion lists for the nozzle editor below. Rendered once
+            per panel rather than per nozzle row. */}
+        <datalist id="nozzle-size-options">
+          {NOZZLE_SIZE_OPTIONS.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+        <datalist id="nozzle-rating-options">
+          {NOZZLE_RATING_OPTIONS.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+
         <label className="data-sheet-field">
           <span>Tag</span>
           <input
@@ -283,6 +297,39 @@ export default function DataSheetPanel({
                       remove
                     </button>
                   </div>
+                  {/* Nozzle size and rating (PRD §4.9.3). The reference drawing
+                      dimensions every nozzle separately from the line —
+                      `ø1 1/2" ANSI 150#` — because a reducer at the vessel wall
+                      means a 4" line can leave a 2" nozzle. Free-text inputs
+                      with datalist suggestions, so a project using a size or
+                      rating outside the built-in lists is not blocked. */}
+                  <div className="nozzle-item-row">
+                    <label>
+                      size
+                      <input
+                        list="nozzle-size-options"
+                        value={port.size ?? ''}
+                        onChange={(e) => updatePort(port.id, { size: e.target.value })}
+                        placeholder={'2" / DN50'}
+                        data-testid={`nozzle-size-${port.id}`}
+                      />
+                    </label>
+                    <label>
+                      rating
+                      <input
+                        list="nozzle-rating-options"
+                        value={port.rating ?? ''}
+                        onChange={(e) => updatePort(port.id, { rating: e.target.value })}
+                        placeholder="150#"
+                        data-testid={`nozzle-rating-${port.id}`}
+                      />
+                    </label>
+                  </div>
+                  {!connected && (
+                    <div className="nozzle-spare-note" data-testid={`nozzle-spare-${port.id}`}>
+                      spare — nothing connected
+                    </div>
+                  )}
                   <div className="nozzle-item-row">
                     <label>
                       x

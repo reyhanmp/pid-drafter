@@ -25,12 +25,21 @@
  * items anyone purchases. The UI reports that excluded count so the gap is
  * visible rather than silent.
  *
+ * NOZZLE SCHEDULE (§4.9.3). Every nozzle on every pressurised item, with the
+ * equipment it belongs to, its size, its rating, and what is connected to it.
+ * Held together with the other lists rather than in a separate dataset — the
+ * rows are read straight off each node's effective ports, so adding a nozzle to
+ * a vessel adds a schedule row with no extra step. Membership is scoped to
+ * equipment items, since a nozzle is a connection on a physical item; an
+ * instrument's signal port is a wire termination, not a nozzle.
+ *
  * MULTI-SHEET ADDITION (§4.8 postdates §4.6). Every list carries a Sheet
  * column. §4.6 was written when one diagram = one sheet; with multiple
  * sheets, a line/valve/instrument row without a sheet is ambiguous the
  * moment two sheets both have a "V-101"-style tag pattern.
  */
 import { symbolsByKind } from '../symbols';
+import { getEffectivePorts } from '../symbols/effectivePorts';
 import type { SymbolCategory } from '../symbols/types';
 import type { ProjectSheet } from '../project/types';
 import type { EquipmentNodeData, PipeEdgeData } from '../types/diagram';
@@ -43,10 +52,20 @@ const VALVE_CATEGORIES: ReadonlySet<SymbolCategory> = new Set(['Valves']);
 /** Categories that intentionally appear in no list — line-end annotations. */
 const UNLISTED_CATEGORIES: ReadonlySet<SymbolCategory> = new Set(['Terminators']);
 
+/**
+ * Categories whose ports are real nozzles and therefore belong on the nozzle
+ * schedule (§4.9.3). Instruments and signal/logic functions are excluded: their
+ * single port is an electrical termination, not a flanged connection, and
+ * terminators have no nozzles at all.
+ */
+const NOZZLE_SCHEDULE_CATEGORIES: ReadonlySet<SymbolCategory> = new Set([
+  'Vessels', 'Columns', 'Reactors', 'Pumps', 'Heat Exchangers', 'Agitators', 'Piping Accessories',
+]);
+
 export type ListRow = Record<string, string>;
 
 export interface EngineeringList {
-  id: 'lines' | 'valves' | 'instruments' | 'equipment';
+  id: 'lines' | 'valves' | 'instruments' | 'equipment' | 'nozzles';
   title: string;
   /** Column keys in display order; the row labels come from COLUMN_LABELS. */
   columns: string[];
@@ -64,6 +83,12 @@ export interface EngineeringListsResult {
 export const COLUMN_LABELS: Record<string, string> = {
   sheet: 'Sheet',
   lineNumber: 'Line No.',
+  equipmentTag: 'Equipment Tag',
+  nozzle: 'Nozzle ID',
+  nozzleLabel: 'Description',
+  nozzleSize: 'Size',
+  nozzleRating: 'Rating',
+  nozzleConnection: 'Connected To',
   lineType: 'Type',
   lineSize: 'Size',
   lineName: 'Service',
@@ -240,6 +265,7 @@ export function buildEngineeringLists(sheets: ProjectSheet[]): EngineeringListsR
   const valveRows: ListRow[] = [];
   const instrumentRows: ListRow[] = [];
   const equipmentRows: ListRow[] = [];
+  const nozzleRows: ListRow[] = [];
   const unlisted: Record<string, number> = {};
 
   for (const sheet of ordered) {
@@ -253,6 +279,18 @@ export function buildEngineeringLists(sheets: ProjectSheet[]): EngineeringListsR
     /** node id -> line numbers of pipes attached to it (for the valve list). */
     const linesByNodeId = new Map<string, string[]>();
     const sizesByNodeId = new Map<string, string>();
+    /**
+     * node id -> (port id -> what is on the far end), for the nozzle schedule's
+     * "Connected To" column. A nozzle with no pipe is a SPARE, and saying so is
+     * the point of a schedule — a blank cell is ambiguous between "spare" and
+     * "not filled in yet", so the column carries the explicit text instead.
+     *
+     * The far end is reported as the other item's TAG when it has one,
+     * otherwise its line number when the pipe is a free line running to empty
+     * space, because either can be the only identifying information available.
+     */
+    const nodeById = new Map(sheet.nodes.map((n) => [n.id, n]));
+    const connectedByPort = new Map<string, Map<string, string>>();
     for (const e of sheet.edges) {
       const data = e.data as unknown as PipeEdgeData | undefined;
       if (isFreeLine(data)) continue; // free lines seat on no node
@@ -266,6 +304,21 @@ export function buildEngineeringLists(sheets: ProjectSheet[]): EngineeringListsR
         }
         const size = (data?.lineSize ?? '').trim();
         if (size && !sizesByNodeId.has(nodeId)) sizesByNodeId.set(nodeId, size);
+      }
+      // Record both directions, each keyed by the port it attaches to.
+      // DiagramEdge.endpoints are nullable in the type; an edge missing one is
+      // already a validation error, so skipping it here is safe.
+      const ends: Array<[string | null | undefined, string | null | undefined, string | null | undefined]> = [
+        [e.source, e.sourceHandle, e.target],
+        [e.target, e.targetHandle, e.source],
+      ];
+      for (const [fromId, fromHandle, otherId] of ends) {
+        if (!fromId || !fromHandle || !otherId) continue;
+        const otherTag = (nodeById.get(otherId)?.data as unknown as EquipmentNodeData | undefined)?.tag?.trim();
+        const far = otherTag || label || '(unlabelled)';
+        const bucket = connectedByPort.get(fromId) ?? new Map<string, string>();
+        if (!bucket.has(fromHandle)) bucket.set(fromHandle, far);
+        connectedByPort.set(fromId, bucket);
       }
     }
 
@@ -327,6 +380,28 @@ export function buildEngineeringLists(sheets: ProjectSheet[]): EngineeringListsR
         continue;
       }
 
+      // ── Nozzle schedule rows for this item (§4.9.3) ──
+      // Read from the EFFECTIVE ports (instance override or symbol default) so
+      // a nozzle the engineer added on this node appears here immediately, and
+      // one they deleted disappears. Position is deliberately not a column —
+      // it is unpickable geometry, not a procurement fact.
+      const effectivePorts = getEffectivePorts(data.kind, data.ports);
+      if (NOZZLE_SCHEDULE_CATEGORIES.has(category)) {
+        const connectedTo = connectedByPort.get(n.id) ?? new Map<string, string>();
+        for (const port of effectivePorts) {
+          if (port.kind !== 'process') continue; // signal ports are terminations
+          nozzleRows.push({
+            sheet: sheet.name,
+            equipmentTag: (data.tag ?? '').trim() || '(untagged)',
+            nozzle: port.id,
+            nozzleLabel: port.label ?? '',
+            nozzleSize: (port.size ?? '').trim(),
+            nozzleRating: (port.rating ?? '').trim(),
+            nozzleConnection: connectedTo.get(port.id) ?? 'SPARE — no connection',
+          });
+        }
+      }
+
       equipmentRows.push({
         sheet: sheet.name,
         tag: (data.tag ?? '').trim(),
@@ -371,6 +446,18 @@ export function buildEngineeringLists(sheets: ProjectSheet[]): EngineeringListsR
         columns: ['sheet', 'tag', 'equipmentType', 'service', 'keyDataSheet'],
         rows: sortBySheetThenTag(equipmentRows, 'tag'),
         emptyHint: 'No equipment on the canvas yet.',
+      },
+      {
+        id: 'nozzles',
+        title: 'Nozzle Schedule',
+        columns: ['sheet', 'equipmentTag', 'nozzle', 'nozzleLabel', 'nozzleSize', 'nozzleRating', 'nozzleConnection'],
+        rows: nozzleRows.sort(
+          (a, b) =>
+            a.sheet.localeCompare(b.sheet) ||
+            (a.equipmentTag ?? '').localeCompare(b.equipmentTag ?? '', undefined, { numeric: true }) ||
+            (a.nozzle ?? '').localeCompare(b.nozzle ?? '', undefined, { numeric: true }),
+        ),
+        emptyHint: 'No nozzles yet. Every pressure-retaining item declares at least one nozzle by default.',
       },
     ],
     unlisted,

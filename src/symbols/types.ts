@@ -37,6 +37,21 @@ export interface SymbolPort {
   direction: PortDirection;
   /** What may connect here — used by the validity engine. 'process' | 'signal' */
   kind: 'process' | 'signal';
+  /**
+   * Nozzle size, e.g. `2"` or `DN50` (PRD §4.9.3).
+   *
+   * A nozzle size is not the same as the line size: a reducer at the vessel
+   * wall means a 4" line can leave a 2" nozzle, and the nozzle is what the
+   * vessel designer sizes the reinforcement pad for. Real drawings therefore
+   * put the size on the nozzle (`ø1 1/2" ANSI 150#`) and the piping spec on the
+   * line, which is why this lives on the port and not on the edge.
+   *
+   * Optional: an unspecified nozzle is a normal state of a drawing in
+   * progress, and nothing downstream fails when it is blank.
+   */
+  size?: string;
+  /** Nozzle flange rating, e.g. `150#`, `300#`, `PN16` (PRD §4.9.3). */
+  rating?: string;
 }
 
 export type SymbolCategory =

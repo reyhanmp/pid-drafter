@@ -136,6 +136,32 @@ export const LINE_SIZE_OPTIONS = [
   '8"',
   '10"',
   '12"',
+  '14"',
+  '16"',
+  '18"',
+  '20"',
+  '24"',
+];
+
+/**
+ * Nominal nozzle sizes (PRD §4.9.3), imperial first because the reference
+ * drawing (X-00000-000-01) dimensions nozzles in inches (`ø1 1/2"`), with the
+ * DN equivalents a metric project would use.
+ */
+export const NOZZLE_SIZE_OPTIONS = [
+  '1/2"', '3/4"', '1"', '1 1/2"', '2"', '3"', '4"', '6"', '8"', '10"', '12"',
+  '16"', '20"', '24"',
+  'DN15', 'DN20', 'DN25', 'DN40', 'DN50', 'DN80', 'DN100', 'DN150', 'DN200',
+  'DN250', 'DN300', 'DN400', 'DN500', 'DN600',
+];
+
+/**
+ * Flange ratings (PRD §4.9.3). ASME class numbers and the PN series, since a
+ * project uses one system or the other and the tool should not force a choice.
+ */
+export const NOZZLE_RATING_OPTIONS = [
+  '150#', '300#', '600#', '900#', '1500#', '2500#',
+  'PN10', 'PN16', 'PN25', 'PN40', 'PN64', 'PN100',
 ];
 
 /** Real ASME/ANSI-style material-of-construction + pressure class options. */

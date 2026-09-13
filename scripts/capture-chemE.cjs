@@ -33,7 +33,7 @@ const PROJECT = {
       id: 'sh-1', name: 'Sheet 1', order: 0,
       nodes: [
         // A reactor with a genuinely filled reaction-engineering sheet.
-        eq('n-r', 'reactor-jacketed', 'R-710.01', 80, 120, 110, 200, {
+        { ...eq('n-r', 'reactor-jacketed', 'R-710.01', 80, 120, 110, 200, {
           service: 'Saponification', reactionType: 'Exothermic, second order',
           designPressure: '6', designTemperature: '180', operatingPressure: '2.5', operatingTemperature: '140',
           volume: '12', workingVolume: '9.6', residenceTime: '45', conversion: '98.5',
@@ -41,7 +41,12 @@ const PROJECT = {
           jacketMedium: 'Cooling water', jacketInletTemp: '28', jacketOutletTemp: '42', jacketFlow: '12.5',
           agitationPower: '11', agitatorSpeed: '85', agitatorType: 'Rushton turbine',
           material: 'SS316L', insulation: 'Mineral wool 50mm', moc: 'SS316L',
-        }),
+        }), ports: [
+          { id: 'feed', label: 'Feed Inlet', x: 55, y: 0, direction: { x: 0, y: -1 }, kind: 'process', size: '2"', rating: '150#' },
+          { id: 'product', label: 'Product Outlet', x: 55, y: 200, direction: { x: 0, y: 1 }, kind: 'process', size: '3"', rating: '300#' },
+          { id: 'jacket-in', label: 'Jacket Inlet', x: 0, y: 170, direction: { x: -1, y: 0 }, kind: 'process', size: '1 1/2"', rating: '150#' },
+          { id: 'jacket-out', label: 'Jacket Outlet', x: 110, y: 130, direction: { x: 1, y: 0 }, kind: 'process', size: '1 1/2"', rating: '150#' },
+        ] },
         // A column, the other deepest process-engineering item.
         eq('n-c', 'column-tray', 'C-710.01', 320, 40, 100, 260, {
           service: 'Fatty acid fractionation', columnType: 'Trayed, sieve', numberOfStages: '32',
@@ -129,6 +134,20 @@ const PROJECT = {
       const panelPresent = await page.evaluate(() => !!document.querySelector('[data-testid="line-data-sheet-panel"]'));
       console.log(`line sheet open: ${panelPresent}; structured fields: ${lnFields.join(', ')}`);
     }
+
+    // Capture the nozzle schedule list.
+    await page.click('[data-testid="open-lists-btn"]');
+    await page.waitForTimeout(400);
+    await page.click('[data-testid="lists-tab-nozzles"]');
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT}/04-nozzle-schedule.png` });
+    const sched = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll('.lists-table tbody tr')].map((tr) =>
+        [...tr.querySelectorAll('td')].map((td) => td.textContent.trim()));
+      return rows.slice(0, 4);
+    });
+    console.log('nozzle schedule rows: ' + sched.length);
+    sched.forEach((r) => console.log('  ' + r.join(' | ')));
 
     const real = errors.filter((e) => !/DevTools|favicon/i.test(e));
     console.log('page errors: ' + (real.length ? real.slice(0, 3).join(' | ') : 'none'));
