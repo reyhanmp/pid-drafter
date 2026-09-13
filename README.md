@@ -165,6 +165,13 @@ Free lines keep their descriptive label since they have no number.
 - **Loop cross-referencing** — hovering an instrument highlights every other
   instrument in the same loop, including a count badge for loop mates living
   on other sheets.
+- **Undo / redo** — every edit is reversible. One gesture is one step, so a
+  50-mousemove drag or a typed tag undoes in a single press rather than one
+  per event. Deleting a node with pipes attached undoes as one step,
+  restoring the node and its pipes together. Selection and file loading are
+  deliberately not undoable — loading a different project clears the history
+  rather than letting undo reach back into a closed document. Buttons in the
+  top bar; keyboard shortcuts are not wired yet.
 
 ## Rotation, nozzles, and free lines
 

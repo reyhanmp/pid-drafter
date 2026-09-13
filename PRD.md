@@ -2,12 +2,39 @@
 
 **Status:** Draft for review (revised with industry-research pass)
 **Author:** Hermes (for Reyhan Prajesa)
-**Date:** 2026-09-08, revised 2026-09-12, 2026-09-13
+**Date:** 2026-09-08, revised 2026-09-12, 2026-09-13 (three passes)
 **Supersedes:** v1 MVP at `~/projects/pid-drafter/` (to be archived, not iterated on)
 
 ---
 
-## 0. Revision note (2026-09-13)
+## 0. Revision note (2026-09-13, later pass)
+
+Landed after the first 2026-09-13 pass, in three commits:
+
+- **`3e17b91` — §4.3 configurable numbering is BUILT.** The original explicit
+  request, previously missing entirely. Both real tag forms are supported
+  (`V-101` and the reference drawing's area form `P-710.01A`); the line
+  sequence is per-AREA and shared across services, matching the real drawing.
+- **`461d7fb` — five false claims corrected.** See §0b. The document asserted
+  features were "already basically done" that did not exist in the code at all.
+- **`ae3d170` — §4.10 undo/redo built**, the §8 deferral re-taken, with a
+  mutation-tested gate. See §4.10 and §8.
+
+## 0b. Revision note (2026-09-13) — correcting false claims
+
+Measuring the build against this document found five assertions that were
+simply not true of the code, all corrected in place and struck through rather
+than deleted so the error stays visible: **§4.4 SVG export** ("already works"
+— no export code existed), **§4.9.3 nozzle size** (claimed to feed the §4.1
+spec check and to appear in the equipment list — it does neither),
+**§6 line-weight hierarchy** (declared "a real spec" while every pipe draws at
+one weight), and **§4.5 hosting** (recorded as unbuilt; actually already
+done). The pattern is worth naming: four of the five were "this already
+works", which is exactly the assumption that lets an unbuilt requirement
+keep slipping. A spec of record that misdescribes the build is worse than no
+spec.
+
+## 0c. Revision note (2026-09-13, first pass)
 
 Records two changes made after the 2026-09-12 pass, both closing gaps
 between the document and the built artifact rather than adding scope:
@@ -59,7 +86,7 @@ are stated as unbuilt rather than implied done.
 
 ---
 
-## 0a. Revision note (2026-09-12)
+## 0d. Revision note (2026-09-12)
 
 Added four new goals/functional requirements after a web-research pass
 comparing how established P&ID products (Siemens COMOS, AVEVA Diagrams,
@@ -163,7 +190,12 @@ enterprise-PLM territory):**
 - No full ISA-5.1 or DEXPI standard compliance — "close enough to be
   credible," not certified
 - No AutoCAD/DWG export
-- No undo/redo (nice-to-have, explicitly deferred past v2.0)
+- ~~No undo/redo~~ — **BUILT 2026-09-13 (`ae3d170`).** Removed from the
+  non-goals: §8 deferred it when this was a 30-symbol single-sheet tool, and
+  that premise no longer holds. Undo/redo now covers every user-visible
+  mutation (drop, connect, delete, drag, tag/nozzle edits, sheet operations,
+  numbering config). Buttons in the top bar; see §4.10. **Not yet done:**
+  keyboard shortcuts (Ctrl+Z / Ctrl+Shift+Z) are not wired.
 - No 3D / isometric anything
 - No automated revision-diffing/revision-cloud generation — manual rev
   block entry is sufficient (see Goal 1 sidebar above)
@@ -516,6 +548,41 @@ acceptance gate, not an aspiration.
 port-conformance gate (§4.2). A feature whose gate does not exist is not
 done.
 
+### 4.10 Undo / redo (NEW — 2026-09-13, `ae3d170`)
+
+Re-taken from §8's deferral; see §8 for why the premise expired.
+
+- **Scope:** every user-visible mutation is undoable — equipment drop, pipe
+  connect, delete, node drag, tag / data-sheet / nozzle edits, free lines,
+  sheet add / rename / reorder / delete, project rename, and the numbering
+  configuration. Two things deliberately are NOT:
+  - **Selection and node-measurement changes.** They are applied (the canvas
+    behaves exactly as before) but create no undo step. Recording them would
+    bury real edits under entries whose undo does nothing visible, and a
+    measurement change arrives when a node mounts — so on a freshly-opened
+    sheet the first Ctrl+Z would appear dead.
+  - **Loading a file.** History is CLEARED, not extended. Undo steps from a
+    closed document would restore nodes belonging to a file no longer open,
+    which is worse than having no undo. Loading is a new starting point.
+- **One gesture = one step.** A drag emits a change per mousemove; typing a
+  tag emits one per keystroke. Both must collapse to a single step, or undo
+  becomes unusable exactly when it is needed. Gestures are grouped by a merge
+  key that stays open for a short window and is sealed by any different key.
+- **A delete is one step for the whole cascade.** Deleting a node with pipes
+  produces two React Flow callbacks — **the pipe removal first**, then the node
+  removal. Recorded separately, the first undo restores the node while its pipe
+  stays gone: a state the user never created, with no undo path back to the
+  intact drawing.
+- **Depth:** bounded (oldest entries dropped), surfaced in the button tooltip.
+- **UI:** Undo / Redo buttons in the project top bar, disabled when empty.
+  Keyboard shortcuts are NOT yet wired (see §7a item 7).
+- **Gate:** `scripts/verify-undo.cjs`, 19 checks, real mouse input. Assertions
+  compare **positions numerically** and **depth deltas**, not node counts — a
+  no-op undo leaves the node count unchanged and satisfies a lax test. The gate
+  was itself mutation-tested: each fix was reverted in turn to confirm the gate
+  fails, and one mechanism that no mutation could break was deleted as dead
+  code rather than kept as insurance.
+
 ---
 
 ## 5. Technical Approach
@@ -691,11 +758,17 @@ All are **unbuilt**, verified against source, not inferred from absence.
    material available — it turns the validity engine into something that
    knows *process* rules, not just graph rules — and it should be built on
    top of a sound connectivity model, not before it.
-7. **Undo/redo.** Currently §8's explicit deferral, and the decision to defer
-   was made when this was a 30-symbol tool. Worth revisiting: at 67 symbols,
-   multi-sheet, lists and a numbering panel, a mis-drag that silently
-   renumbers or deletes is expensive to recover from by hand. Flagging it as
-   a decision to re-take, not as an oversight.
+7. ~~**Undo/redo.**~~ **RESOLVED 2026-09-13 (`ae3d170`), now §4.10.** The
+   deferral was re-taken and undo/redo is built and gated
+   (`scripts/verify-undo.cjs`, 19 checks, driven by real mouse input). Three
+   real defects were found and fixed by that gate after the feature looked
+   finished: undo of a drag was a complete no-op; deleting a node with pipes
+   took two steps and left the node restored with its pipe still gone; and the
+   step count depended on wall-clock timing because the merge key embedded a
+   timestamp and StrictMode double-invokes state updaters. **Remaining:** no
+   keyboard shortcuts yet, and all evidence is from the dev build — the
+   StrictMode double-invoke that made the third bug nondeterministic is absent
+   from prod, so that path still deserves its own run.
 8. **Line weight hierarchy partially implemented** (§6). Main-run vs branch
    piping distinction and battery-limit weight are absent; every process run
    draws at one weight.
@@ -707,7 +780,12 @@ All are **unbuilt**, verified against source, not inferred from absence.
 
 ## 8. Out of Scope for v2.0 (explicitly deferred, may revisit later)
 
-- Undo/redo
+- ~~Undo/redo~~ — **NO LONGER DEFERRED; built 2026-09-13 (`ae3d170`), §4.10.**
+  The deferral was taken against a 30-symbol single-sheet tool; the tool is now
+  67 symbols, multi-sheet, with derived lists and a numbering panel, and the
+  cost of a mis-drag grew with it while the cost of building undo did not.
+  Re-taking a deferral when its premise expires is the point of recording the
+  premise.
 - DEXPI export (until 4.1–4.8 solid)
 - Real ISA-5.1/DEXPI standard certification-level compliance
 - Any collaboration/multi-user feature
