@@ -37,6 +37,18 @@ import {
   type NumberingConfig,
   type TagNumberingScheme,
 } from './numbering';
+import {
+  createHistory,
+  editKey,
+  isUndoableEdgeChange,
+  isUndoableNodeChange,
+  record,
+  REMOVAL_CASCADE_MS,
+  removeKey,
+  redo as redoHistory,
+  undo as undoHistory,
+  type History,
+} from './history';
 
 /**
  * Auto-tagging now reads the project's NUMBERING CONFIG (PRD §4.3) rather than
@@ -103,6 +115,16 @@ export interface ProjectStore {
    * Returns the number of lines numbered.
    */
   numberUnnumberedLines: () => number;
+
+  // ── Undo / redo (PRD §8's deferral, re-taken) ──
+  /** True when there is a step to undo. Drives the top-bar button state. */
+  canUndo: boolean;
+  /** True when there is a step to redo. */
+  canRedo: boolean;
+  /** Number of undo steps available — surfaced in the button tooltip. */
+  undoDepth: number;
+  undo: () => void;
+  redo: () => void;
 }
 
 export function useProject(): ProjectStore {
@@ -115,6 +137,119 @@ export function useProject(): ProjectStore {
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unavailable'>('idle');
   const [autosaveNotice, setAutosaveNotice] = useState<string | null>(null);
 
+  // ── Undo/redo state ──
+  // Held in a ref, not React state: history is bookkeeping that no render
+  // depends on, and every mutation route needs to read the CURRENT stack
+  // synchronously. React state would be a render behind inside a burst of
+  // mutations (a drag), which is exactly when correctness matters.
+  const historyRef = useRef<History<Project>>(createHistory<Project>());
+  // Mirrors of the derived can-undo/can-redo flags, so the store can expose
+  // them without forcing a re-render of every consumer on every mutation.
+  const [historyVersion, setHistoryVersion] = useState(0);
+
+  /**
+   * The current project, mirrored into a ref so `undo`/`redo` can read it
+   * without listing `project` as a dependency. Depending on `project` would
+   * rebuild those callbacks on every keystroke, which in turn re-renders the
+   * top bar and every consumer holding the `undo` identity — a needless
+   * render per edit for callbacks that only ever read the latest value.
+   */
+  const projectRef = useRef(project);
+  projectRef.current = project;
+
+  /**
+   * Set while a node is mid-drag, so keyboard undo cannot fire mid-gesture.
+   * `onNodesChange` reports the node already moved for the current frame; an
+   * undo at that moment would be overwritten by the next mousemove, leaving
+   * the user convinced undo is broken.
+   */
+  const dragInProgressRef = useRef(false);
+
+  /**
+   * The merge key of the drag gesture in progress.
+   *
+   * Set on the FIRST frame and held until the drag ends, so every frame of the
+   * gesture records against the SAME entry regardless of how many changes React
+   * Flow batches per callback.
+   *
+   * Note what is NOT stored here: a pre-drag snapshot. An earlier version also
+   * parked one and passed it into `record` as an override. Mutation-testing the
+   * gate proved it was dead weight — the first frame's own `prev` IS the
+   * pre-drag state, because nothing has been applied yet for this gesture. The
+   * override was removed rather than kept as insurance.
+   */
+  const dragStartRef = useRef<{ key: string } | null>(null);
+
+  /**
+   * Merge key and timestamp of the most recent removal, of either kind.
+   *
+   * Deleting a node that has pipes attached is ONE user gesture but TWO React
+   * Flow callbacks. Measured against the real browser (see the probe in the
+   * commit message), the order is:
+   *
+   *     EDGESCHANGE [{type:'remove', id:'pipe-...'}]
+   *     NODESCHANGE [{type:'remove', id:'vessel-...'}]
+   *
+   * — the EDGE removal arrives FIRST. On its own that ordering makes the
+   * cascade impossible to catch by anticipating it from the node side, which is
+   * why this ref is direction-agnostic: whichever removal lands first publishes
+   * its key, and the other kind of removal landing immediately after reuses it.
+   *
+   * Recorded as two steps, the first undo restores the node while its pipe
+   * stays deleted — a state the user never created, and undoing again then
+   * removes the node instead of fixing it. Merging keeps the FIRST entry, whose
+   * snapshot is the intact pre-delete state, so one undo restores node and
+   * pipes together.
+   */
+  const lastRemovalRef = useRef<{ key: string; at: number } | null>(null);
+
+  /**
+   * Key for a removal, reusing the previous removal's key when this one is part
+   * of the same gesture (see lastRemovalRef). Returns the key to record under.
+   */
+  const removalKey = useCallback((kind: 'node' | 'edge', ids: string) => {
+    const prev = lastRemovalRef.current;
+    const now = Date.now();
+    if (prev && now - prev.at <= REMOVAL_CASCADE_MS) return prev.key;
+    const fresh = removeKey(kind, ids);
+    lastRemovalRef.current = { key: fresh, at: now };
+    return fresh;
+  }, []);
+
+  /**
+   * THE mutation funnel for anything the user can undo.
+   *
+   * `updater` receives the CURRENT project and returns the next one, so the
+   * pre-change snapshot is captured from the same value React is about to
+   * replace. That matters: reading `project` from the closure instead would
+   * record a stale snapshot whenever the caller is one render behind — during
+   * a drag, or when several mutations land in one tick — and undo would then
+   * restore a state that never existed.
+   *
+   * `mergeKey` groups a continuous gesture into one undo step; see
+   * ./history.ts for why that is the difference between working and broken
+   * undo. Non-undoable state changes (autosave-driven, or programmatic)
+   * bypass this and call setProject directly.
+   */
+  const mutate = useCallback(
+    (updater: (prev: Project) => Project, mergeKey: string) => {
+      let recorded = false;
+      setProject((prev) => {
+        const next = updater(prev);
+        // A no-op updater (returned the same object) is not a history step.
+        // Several apply* helpers return the input unchanged when nothing
+        // matched, and recording those would fill the stack with entries whose
+        // undo does nothing visible.
+        if (next === prev) return prev;
+        historyRef.current = record(historyRef.current, prev, next, mergeKey, Date.now());
+        recorded = true;
+        return next;
+      });
+      if (recorded) setHistoryVersion((v) => v + 1);
+    },
+    [],
+  );
+
   // Resolve the active sheet id against the CURRENT project; falls back to
   // the first sheet so a stale/removed id can never leave a blank canvas.
   const activeSheet = useMemo(
@@ -123,8 +258,17 @@ export function useProject(): ProjectStore {
   );
   const resolvedActiveId = activeSheet?.id ?? '';
 
-  /** Patch the ACTIVE sheet's nodes/edges via an updater on that sheet. */
-  const patchActiveSheet = useCallback(
+  /**
+   * Patch the active sheet WITHOUT creating an undo step.
+   *
+   * For canvas bookkeeping that carries no user intent: selection highlights
+   * and node-dimension measurements. These must still be applied — the canvas
+   * needs them to work — but recording them would put entries on the stack
+   * whose undo does nothing visible, and (worse) a `dimensions` change
+   * arriving on mount would make "undo" appear to do nothing at all on a
+   * freshly-opened sheet.
+   */
+  const patchActiveSheetNoHistory = useCallback(
     (updater: (sheet: ProjectSheet) => ProjectSheet) => {
       setProject((prev) => ({
         ...prev,
@@ -134,14 +278,99 @@ export function useProject(): ProjectStore {
     [resolvedActiveId],
   );
 
+  /**
+   * Patch the ACTIVE sheet's nodes/edges via an updater on that sheet.
+   *
+   * Routes through `mutate`, so every canvas edit — drop, connect, delete,
+   * drag, tag edit, nozzle edit — is undoable without each call site having to
+   * remember to record history itself. `mergeKey` decides whether the edit
+   * joins the previous undo step or starts a new one; see ./history.ts.
+   */
+  const patchActiveSheet = useCallback(
+    (updater: (sheet: ProjectSheet) => ProjectSheet, mergeKey: string) => {
+      mutate(
+        (prev) => ({
+          ...prev,
+          sheets: prev.sheets.map((s) => (s.id === resolvedActiveId ? updater(s) : s)),
+        }),
+        mergeKey,
+      );
+    },
+    [mutate, resolvedActiveId],
+  );
+
   // ── Per-sheet canvas mutations (moved verbatim from DrawingCanvas) ──
+  //
+  // History for these two is opt-in per change type, not blanket. React Flow
+  // emits a change for EVERY mousemove and every node measurement; recording
+  // all of them would give one undo step per pixel and a stack full of no-op
+  // entries. Only changes that carry user intent are recorded — see
+  // isUndoableNodeChange / isUndoableEdgeChange in ./history.ts.
+  //
+  // Select/dimension changes still APPLY, they just do not create a step, so
+  // the canvas behaves exactly as before; only the history differs.
   const onNodesChange = useCallback(
-    (changes: NodeChange[]) => patchActiveSheet((s) => ({ ...s, nodes: applyNodeChanges(changes, s.nodes) })),
-    [patchActiveSheet],
+    (changes: NodeChange[]) => {
+      const typed = changes as Array<{ type?: string; id?: string; dragging?: boolean }>;
+
+      // ── Capture the pre-drag snapshot on the FIRST frame of the gesture ──
+      // Only here is the project still holding the node at its resting
+      // position. See dragStartRef for why recording at drag END cannot work.
+      const anyDragging = typed.some((c) => c.type === 'position' && c.dragging === true);
+      const anyDragEnded = typed.some((c) => c.type === 'position' && c.dragging === false);
+      if (anyDragging) {
+        dragInProgressRef.current = true;
+        if (!dragStartRef.current) {
+          // All nodes in one gesture share a single entry, so the key is
+          // deliberately identifier-independent: a multi-select drag must be
+          // ONE undo step, not one per selected node.
+          dragStartRef.current = { key: editKey('node', 'drag') };
+        }
+      }
+      if (anyDragEnded) dragInProgressRef.current = false;
+
+      const undoable = typed.some((c) => isUndoableNodeChange(c));
+      const dragStart = dragStartRef.current;
+
+      if (!undoable && !dragStart) {
+        // Non-undoable bookkeeping (selection, dimensions). Apply directly so
+        // it never enters the stack, and never merges into a real step.
+        patchActiveSheetNoHistory((s) => ({ ...s, nodes: applyNodeChanges(changes, s.nodes) }));
+        return;
+      }
+
+      // A drag's final frame (or a delete) commits the step. The merge key
+      // comes from the gesture captured at drag start so every frame in the
+      // gesture targets the same entry regardless of how many changes React
+      // Flow batches into each callback.
+      const key = dragStart
+        ? dragStart.key
+        : // A removal joins the previous removal when they are one gesture
+          // (delete a node with pipes); see lastRemovalRef.
+          removalKey('node', typed.map((c) => c.id ?? '?').join('+'));
+      if (dragStart && anyDragEnded) dragStartRef.current = null;
+
+      patchActiveSheet((s) => ({ ...s, nodes: applyNodeChanges(changes, s.nodes) }), key);
+    },
+    [patchActiveSheet, patchActiveSheetNoHistory, removalKey],
   );
   const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => patchActiveSheet((s) => ({ ...s, edges: applyEdgeChanges(changes, s.edges) })),
-    [patchActiveSheet],
+    (changes: EdgeChange[]) => {
+      const typedEdge = changes as Array<{ type?: string; id?: string }>;
+      const undoable = changes.some((c) => isUndoableEdgeChange(c as { type?: string }));
+      if (!undoable) {
+        patchActiveSheetNoHistory((s) => ({ ...s, edges: applyEdgeChanges(changes, s.edges) }));
+        return;
+      }
+      // Deleting a node with pipes emits this callback FIRST (measured), so
+      // the pipe removal publishes the key and the node removal that follows
+      // merges into it — one gesture, one undo step, restoring both together.
+      patchActiveSheet(
+        (s) => ({ ...s, edges: applyEdgeChanges(changes, s.edges) }),
+        removalKey('edge', typedEdge.map((c) => c.id ?? '?').join('+')),
+      );
+    },
+    [patchActiveSheet, patchActiveSheetNoHistory, removalKey],
   );
 
   /**
@@ -189,7 +418,7 @@ export function useProject(): ProjectStore {
           targetDirection: targetPort.direction,
         } satisfies PipeEdgeData & Record<string, unknown>,
       };
-      patchActiveSheet((s) => ({ ...s, edges: addEdge(newEdge, s.edges) }));
+      patchActiveSheet((s) => ({ ...s, edges: addEdge(newEdge, s.edges) }), `connect:${newEdge.id}`);
     },
     [patchActiveSheet],
   );
@@ -223,7 +452,7 @@ export function useProject(): ProjectStore {
           freeEnd: end,
         } satisfies PipeEdgeData & Record<string, unknown>,
       };
-      patchActiveSheet((s) => ({ ...s, edges: [...s.edges, edge] }));
+      patchActiveSheet((s) => ({ ...s, edges: [...s.edges, edge] }), `freeline:${id}`);
       return id;
     },
     [patchActiveSheet],
@@ -238,7 +467,10 @@ export function useProject(): ProjectStore {
    */
   const removeEdge = useCallback(
     (edgeId: string) => {
-      patchActiveSheet((s) => ({ ...s, edges: s.edges.filter((e) => e.id !== edgeId) }));
+      patchActiveSheet(
+        (s) => ({ ...s, edges: s.edges.filter((e) => e.id !== edgeId) }),
+        removeKey('edge', edgeId),
+      );
     },
     [patchActiveSheet],
   );
@@ -260,7 +492,7 @@ export function useProject(): ProjectStore {
           }
           return updated;
         }),
-      }));
+      }), editKey('edge', edgeId));
     },
     [patchActiveSheet],
   );
@@ -286,19 +518,22 @@ export function useProject(): ProjectStore {
           }
           return updated;
         }),
-      }));
+      }), editKey('node', nodeId));
     },
     [patchActiveSheet],
   );
 
   const commitTagEdit = useCallback(
     (nodeId: string, tag: string) => {
-      patchActiveSheet((s) => ({
-        ...s,
-        nodes: s.nodes.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, tag: tag.trim() } } : n,
-        ),
-      }));
+      patchActiveSheet(
+        (s) => ({
+          ...s,
+          nodes: s.nodes.map((n) =>
+            n.id === nodeId ? { ...n, data: { ...n.data, tag: tag.trim() } } : n,
+          ),
+        }),
+        editKey('node', nodeId),
+      );
     },
     [patchActiveSheet],
   );
@@ -308,7 +543,7 @@ export function useProject(): ProjectStore {
     (kind: string, position: { x: number; y: number }) => {
       const symbol = symbolsByKind[kind];
       if (!symbol) return;
-      setProject((prev) => ({
+      mutate((prev) => ({
         ...prev,
         sheets: prev.sheets.map((s) => {
           if (s.id !== resolvedActiveId) return s;
@@ -334,37 +569,46 @@ export function useProject(): ProjectStore {
           };
           return { ...s, nodes: [...s.nodes, newNode] };
         }),
-      }));
+      }), `add:${Date.now()}`);
     },
-    [resolvedActiveId, updateNodeData],
+    [mutate, resolvedActiveId, updateNodeData],
   );
 
   // ── Sheet-tab operations (PRD §4.8) ──
 
   const setActiveSheet = useCallback((sheetId: string) => setActiveSheetId(sheetId), []);
 
-  const setProjectName = useCallback((name: string) => setProject((prev) => ({ ...prev, projectName: name })), []);
+  const setProjectName = useCallback(
+    (name: string) => mutate((prev) => ({ ...prev, projectName: name }), editKey('sheet', 'project-name')),
+    [mutate],
+  );
 
   const addSheet = useCallback(() => {
     const created = newSheetId();
-    setProject((prev) => {
+    mutate((prev) => {
       const order = prev.sheets.length;
       const sheet: ProjectSheet = { id: created, name: defaultSheetName(order), order, nodes: [], edges: [] };
       return { ...prev, sheets: [...prev.sheets, sheet] };
-    });
+    }, `sheet-add:${created}`);
     setActiveSheetId(created);
-  }, []);
+  }, [mutate]);
 
-  const renameSheet = useCallback((sheetId: string, name: string) => {
-    setProject((prev) => ({
-      ...prev,
-      sheets: prev.sheets.map((s) => (s.id === sheetId ? { ...s, name } : s)),
-    }));
-  }, []);
+  const renameSheet = useCallback(
+    (sheetId: string, name: string) => {
+      mutate(
+        (prev) => ({
+          ...prev,
+          sheets: prev.sheets.map((s) => (s.id === sheetId ? { ...s, name } : s)),
+        }),
+        editKey('sheet', sheetId),
+      );
+    },
+    [mutate],
+  );
 
   /** Move a sheet to a new 0-based index, renumbering `order` to stay contiguous. */
   const reorderSheet = useCallback((sheetId: string, toIndex: number) => {
-    setProject((prev) => {
+    mutate((prev) => {
       const from = prev.sheets.findIndex((s) => s.id === sheetId);
       if (from < 0) return prev;
       const clamped = Math.max(0, Math.min(prev.sheets.length - 1, toIndex));
@@ -373,20 +617,20 @@ export function useProject(): ProjectStore {
       const [moved] = next.splice(from, 1);
       next.splice(clamped, 0, moved);
       return { ...prev, sheets: next.map((s, i) => ({ ...s, order: i })) };
-    });
-  }, []);
+    }, `sheet-move:${sheetId}:${toIndex}`);
+  }, [mutate]);
 
   /** Delete a sheet. Refuses (returns false) when only one sheet remains. */
   const deleteSheet = useCallback(
     (sheetId: string): boolean => {
       let deleted = false;
-      setProject((prev) => {
+      mutate((prev) => {
         if (prev.sheets.length <= 1) return prev; // minimum one sheet always remains
         if (!prev.sheets.some((s) => s.id === sheetId)) return prev;
         deleted = true;
         const remaining = prev.sheets.filter((s) => s.id !== sheetId).map((s, i) => ({ ...s, order: i }));
         return { ...prev, sheets: remaining };
-      });
+      }, removeKey('edge', `sheet:${sheetId}`));
       if (deleted) {
         setActiveSheetId((current) => {
           if (current !== sheetId) return current;
@@ -396,11 +640,21 @@ export function useProject(): ProjectStore {
       }
       return deleted;
     },
-    [project.sheets],
+    [mutate, project.sheets],
   );
 
+  /**
+   * Replace the whole project (JSON load / new project).
+   *
+   * History is CLEARED rather than extended, deliberately: undo steps from the
+   * previous document would restore nodes that belong to a file no longer
+   * open, which is worse than having no undo. Loading a file is a new starting
+   * point, not an edit.
+   */
   const replaceProject = useCallback((next: Project) => {
     setProject(next);
+    historyRef.current = createHistory<Project>();
+    setHistoryVersion((v) => v + 1);
     setActiveSheetId(next.sheets[0]?.id ?? '');
   }, []);
 
@@ -412,25 +666,31 @@ export function useProject(): ProjectStore {
   // undefined fields the UI would have to guard at every use.
   const numbering = useMemo(() => normalizeNumbering(project.numbering), [project.numbering]);
 
-  const setTagNumbering = useCallback((patch: Partial<TagNumberingScheme>) => {
-    setProject((prev) => ({
-      ...prev,
-      numbering: {
-        ...normalizeNumbering(prev.numbering),
-        tags: { ...normalizeNumbering(prev.numbering).tags, ...patch },
-      },
-    }));
-  }, []);
+  const setTagNumbering = useCallback(
+    (patch: Partial<TagNumberingScheme>) => {
+      mutate((prev) => ({
+        ...prev,
+        numbering: {
+          ...normalizeNumbering(prev.numbering),
+          tags: { ...normalizeNumbering(prev.numbering).tags, ...patch },
+        },
+      }), editKey('numbering', 'tags'));
+    },
+    [mutate],
+  );
 
-  const setLineNumbering = useCallback((patch: Partial<LineNumberingScheme>) => {
-    setProject((prev) => ({
-      ...prev,
-      numbering: {
-        ...normalizeNumbering(prev.numbering),
-        lines: { ...normalizeNumbering(prev.numbering).lines, ...patch },
-      },
-    }));
-  }, []);
+  const setLineNumbering = useCallback(
+    (patch: Partial<LineNumberingScheme>) => {
+      mutate((prev) => ({
+        ...prev,
+        numbering: {
+          ...normalizeNumbering(prev.numbering),
+          lines: { ...normalizeNumbering(prev.numbering).lines, ...patch },
+        },
+      }), editKey('numbering', 'lines'));
+    },
+    [mutate],
+  );
 
   /**
    * Bulk-number the active sheet's unnumbered lines.
@@ -455,9 +715,54 @@ export function useProject(): ProjectStore {
         if (!assigned) return e;
         return { ...e, data: { ...(e.data as object), lineNumber: assigned } as typeof e.data };
       }),
-    }));
+    }), `number-lines:${Date.now()}`);
     return byId.size;
   }, [patchActiveSheet, project.numbering, project.sheets, resolvedActiveId]);
+
+  // ── Undo / redo (PRD §8's deferral, re-taken) ──
+
+  /**
+   * Undo. The inverse of `record`: the state being left is pushed onto the
+   * redo stack so undo and redo are exact mirror operations — stepping back
+   * then forward returns the identical project, with no drift.
+   *
+   * Blocked while a drag is in progress, because `onNodesChange` fires
+   * mid-gesture with the node's position already updated for the current
+   * frame: undoing then would restore a state React Flow is about to overwrite
+   * on the next mouse move. The whole drag is one history entry, so undoing it
+   * once it has settled is the correct behaviour anyway.
+   */
+  const undo = useCallback(() => {
+    if (dragInProgressRef.current) return;
+    const result = undoHistory(historyRef.current, projectRef.current);
+    if (!result) return;
+    historyRef.current = result.history;
+    setProject(result.state);
+    setHistoryVersion((v) => v + 1);
+  }, []);
+
+  const redo = useCallback(() => {
+    if (dragInProgressRef.current) return;
+    const result = redoHistory(historyRef.current, projectRef.current);
+    if (!result) return;
+    historyRef.current = result.history;
+    setProject(result.state);
+    setHistoryVersion((v) => v + 1);
+  }, []);
+
+  // Derived from the ref, but memoised on `historyVersion` so the values are
+  // recomputed only when the stack actually changes and are stable references
+  // between those points.
+  const { canUndo, canRedo, undoDepth } = useMemo(
+    () => ({
+      canUndo: historyRef.current.past.length > 0,
+      canRedo: historyRef.current.future.length > 0,
+      undoDepth: historyRef.current.past.length,
+    }),
+    // historyVersion is the signal, not an input — the ref is the source.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [historyVersion],
+  );
 
   // ── Debounced localStorage autosave (PRD §4.4) ──
   const firstRun = useRef(true);
@@ -519,5 +824,13 @@ export function useProject(): ProjectStore {
     setTagNumbering,
     setLineNumbering,
     numberUnnumberedLines,
+
+    // Undo/redo. The history stack itself lives in a ref (see above); these
+    // three are its render-visible projection.
+    canUndo,
+    canRedo,
+    undoDepth,
+    undo,
+    redo,
   };
 }

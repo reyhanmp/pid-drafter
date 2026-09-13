@@ -20,6 +20,11 @@ export default function ProjectTopBar({
   onLoad,
   onOpenLists,
   onOpenNumbering,
+  canUndo,
+  canRedo,
+  undoDepth,
+  onUndo,
+  onRedo,
 }: {
   project: Project;
   projectName: string;
@@ -28,6 +33,11 @@ export default function ProjectTopBar({
   onLoad: (project: Project) => void;
   onOpenLists: () => void;
   onOpenNumbering: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  undoDepth: number;
+  onUndo: () => void;
+  onRedo: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadErrors, setLoadErrors] = useState<string[]>([]);
@@ -99,6 +109,26 @@ export default function ProjectTopBar({
         />
       </label>
 
+      <button
+        onClick={onUndo}
+        disabled={!canUndo}
+        data-testid="undo-btn"
+        title={
+          canUndo
+            ? `Undo (Ctrl+Z) — ${undoDepth} step${undoDepth === 1 ? '' : 's'} available`
+            : 'Nothing to undo'
+        }
+      >
+        Undo
+      </button>
+      <button
+        onClick={onRedo}
+        disabled={!canRedo}
+        data-testid="redo-btn"
+        title={canRedo ? 'Redo (Ctrl+Shift+Z or Ctrl+Y)' : 'Nothing to redo'}
+      >
+        Redo
+      </button>
       <button
         onClick={onOpenLists}
         data-testid="open-lists-btn"

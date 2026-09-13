@@ -67,6 +67,11 @@ function DrawingCanvas() {
     removeEdge,
     autosaveNotice,
     dismissAutosaveNotice,
+    canUndo,
+    canRedo,
+    undoDepth,
+    undo,
+    redo,
     numbering,
     setTagNumbering,
     setLineNumbering,
@@ -399,6 +404,11 @@ function DrawingCanvas() {
           autosaveStatus={autosaveStatus}
           onLoad={handleLoad}
           onOpenLists={() => setShowLists(true)}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          undoDepth={undoDepth}
+          onUndo={undo}
+          onRedo={redo}
         />
         {showLists && (
           <EngineeringListsPanel
