@@ -26,6 +26,8 @@ node scripts/verify-lists.cjs      http://127.0.0.1:5199/   # engineering lists
 node scripts/verify-tags.cjs       http://127.0.0.1:5199/   # ISA-5.1 + line numbers
 node scripts/verify-nozzles.cjs    http://127.0.0.1:5199/   # nozzle schedule
 node scripts/verify-datasheets.cjs http://127.0.0.1:5199/   # data-sheet depth
+node scripts/verify-numbering.cjs  http://127.0.0.1:5199/   # tag / line numbering
+node scripts/verify-undo.cjs       http://127.0.0.1:5199/   # undo / redo
 node scripts/verify-freeline.cjs   http://127.0.0.1:5199/   # free-line mode
 node scripts/verify-bug3.cjs       http://127.0.0.1:5199/   # connection preview
 ```
@@ -69,9 +71,8 @@ number has corrupted their drawing.
 | Tag & line semantics | Soft | unrecognised ISA code, prefix/symbol disagreement, unparseable line number |
 
 The soft tier is soft deliberately. Real drawings extend the standards — the
-reference drawing used for this project (`X-00000-000-01`, client
-continuous saponification) uses `ZSL`, `ZSH`, `HS` and `AV`, none of which
-ISA-5.1 defines. A tool that refused those drawings would be confidently
+reference drawing used for this project (a client continuous-saponification
+P&ID) uses `ZSL`, `ZSH`, `HS` and `AV`, none of which ISA-5.1 defines. A tool that refused those drawings would be confidently
 wrong about correct work. Only one tag rule is a hard error: no function
 letters or no loop number, which genuinely breaks loop cross-referencing,
 list generation and export.
@@ -214,8 +215,9 @@ deleting one is a store action rather than `setEdges`.
 
 ## Reference
 
-`reference/` holds the issued drawing this tool's conventions were measured
-against (`X-00000-000-01`, Continuous Saponification Plant). It is gitignored
-and not distributed. `PRD.md` is the specification of record; §4.9 covers the
+`reference/` holds the issued client drawing this tool's conventions were
+measured against. It is gitignored and not distributed, and client
+identifiers have been replaced with placeholders throughout this repository
+(see `PRD.md` §0). `PRD.md` is the specification of record; §4.9 covers the
 chemical-engineering depth requirements and §6 documents the line-number
 format and symbol conventions taken from that drawing.

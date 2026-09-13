@@ -12,7 +12,7 @@
 **Client identifiers redacted.** This document and the source tree were
 prepared for publication, and §6's reference drawing is a real issued client
 document. Every identifier that could serve as a search key back to that
-document has been replaced with a placeholder:
+document has been replaced with a placeholder.
 
 The drawing number, the client name, and the real area codes have been
 replaced with placeholders. The specific originals are deliberately not
@@ -31,23 +31,39 @@ area.seq tag form, ISA-5.1 bubble layout, `ø1 1/2" ANSI 150#` nozzles)
 are industry practice and remain fully documented; a placeholder for the
 document that happened to be the reference costs the reader nothing.
 
-**Known limitation:** this redaction applies to the current tree and all
-future commits. It does NOT rewrite history — the earlier commits' diffs
-still contain the original identifiers, as does the previously-pushed
-`origin/main`. Removing them there requires a history rewrite and a
-force-push over published commits.
+**What this does and does not cover** (measured, not assumed):
+
+- *Covered:* the current tree, every future commit, and the commit MESSAGES
+  of the previously-unpublished commits. Those messages were rewritten with
+  `git filter-branch --msg-filter` before the first push of this work, because
+  two of them named the drawing and quoted real area codes in their bodies —
+  publishing them would have made the redaction pointless.
+- *Not covered:* the file CONTENTS of the earlier, previously-published
+  commits. Their diffs still contain the original identifiers, so the strings
+  remain reachable by checking out an old revision. They also survive in the
+  old `origin/main` tip, which is unreferenced on the remote now but still
+  fetchable by SHA.
+- *Also not covered:* one 2026-09-10 commit subject that names the client.
+  It was already published at the time of writing.
+
+Removing the remaining traces means rewriting published history and
+force-pushing over it. That was not done unilaterally here: it invalidates
+every SHA anyone may have referenced, and the cost is not obviously worth
+it given the drawing itself was never committed. If it matters, it should be
+a deliberate decision, and the most reliable route is to delete and re-create
+the repository from the current tree rather than rewrite 31 commits in place.
 
 ## 0a. Revision note (2026-09-13, three commits)
 
 Landed after the first 2026-09-13 pass, in three commits:
 
-- **`3e17b91` — §4.3 configurable numbering is BUILT.** The original explicit
+- **`eda55e6` — §4.3 configurable numbering is BUILT.** The original explicit
   request, previously missing entirely. Both real tag forms are supported
   (`V-101` and the reference drawing's area form `P-710.01A`); the line
   sequence is per-AREA and shared across services, matching the real drawing.
-- **`461d7fb` — five false claims corrected.** See §0b. The document asserted
+- **`6834d7a` — five false claims corrected.** See §0b. The document asserted
   features were "already basically done" that did not exist in the code at all.
-- **`ae3d170` — §4.10 undo/redo built**, the §8 deferral re-taken, with a
+- **`cdccd2c` — §4.10 undo/redo built**, the §8 deferral re-taken, with a
   mutation-tested gate. See §4.10 and §8.
 
 ## 0b. Revision note (2026-09-13) — correcting false claims
@@ -100,7 +116,7 @@ aspirations.
 **4. §4.3 configurable numbering SHIPPED, and five claims in this
 document measured against the source rather than assumed.** The numbering
 settings panel was the one explicitly-requested item from the original
-brief that had never been built; it is now built (`3e17b91`) for both tag
+brief that had never been built; it is now built (`eda55e6`) for both tag
 shapes and the drawing's own line format. The review that produced it
 also found the document asserting five things that were not true of the
 code — an export path that does not exist, a nozzle-spec link that is not
@@ -220,7 +236,7 @@ enterprise-PLM territory):**
 - No full ISA-5.1 or DEXPI standard compliance — "close enough to be
   credible," not certified
 - No AutoCAD/DWG export
-- ~~No undo/redo~~ — **BUILT 2026-09-13 (`ae3d170`).** Removed from the
+- ~~No undo/redo~~ — **BUILT 2026-09-13 (`cdccd2c`).** Removed from the
   non-goals: §8 deferred it when this was a 30-symbol single-sheet tool, and
   that premise no longer holds. Undo/redo now covers every user-visible
   mutation (drop, connect, delete, drag, tag/nozzle edits, sheet operations,
@@ -356,7 +372,7 @@ enterprise-PLM territory):**
   touching the symbol boundary (no connecting at an angle that doesn't
   match how pipe would physically run out of that nozzle).
 - **Configurable line/tag numbering (explicitly requested). — SHIPPED 2026-09-13
-  (`3e17b91`).** A settings panel (top bar → *Numbering*) where the numbering
+  (`eda55e6`).** A settings panel (top bar → *Numbering*) where the numbering
   scheme for line numbers and tags is defined once for the project: tag shape,
   area/unit, sequence start, zero-pad width, suffix, step, and a per-type
   starting number; plus the line-number format fields. Exact scheme is
@@ -548,7 +564,7 @@ acceptance gate, not an aspiration.
   already-drawn lines are not orphaned.
 - Gate: `scripts/verify-tags.cjs`.
 
-**4.9.3 Nozzles carry size and rating. — SHIPPED 2026-09-13 (`34797ea`)**
+**4.9.3 Nozzles carry size and rating. — SHIPPED 2026-09-13 (`2c2dd8b`)**
 - Every port may declare a nominal size and an ANSI/ASME class, shown in
   the data sheet's nozzle editor. The real drawing sizes every nozzle
   (`ø1 1/2" ANSI 150#`); bare geometry is not a nozzle schedule.
@@ -578,7 +594,7 @@ acceptance gate, not an aspiration.
 port-conformance gate (§4.2). A feature whose gate does not exist is not
 done.
 
-### 4.10 Undo / redo (NEW — 2026-09-13, `ae3d170`)
+### 4.10 Undo / redo (NEW — 2026-09-13, `cdccd2c`)
 
 Re-taken from §8's deferral; see §8 for why the premise expired.
 
@@ -612,6 +628,37 @@ Re-taken from §8's deferral; see §8 for why the premise expired.
   was itself mutation-tested: each fix was reverted in turn to confirm the gate
   fails, and one mechanism that no mutation could break was deleted as dead
   code rather than kept as insurance.
+
+### 4.11 Acceptance gates (the definition of "done")
+
+Every functional requirement above is backed by an executable gate. A feature
+whose gate does not exist is not done — that rule is why the numbering feature
+and undo/redo were treated as unbuilt until their suites existed. Run the dev
+server, then:
+
+```
+node scripts/verify-port-outline.cjs http://127.0.0.1:5199/   # 4.2  symbol ports on drawn ink
+node scripts/verify-datasheets.cjs   http://127.0.0.1:5199/   # 4.9  data-sheet depth
+node scripts/verify-lists.cjs        http://127.0.0.1:5199/   # 4.6  derived engineering lists
+node scripts/verify-tags.cjs         http://127.0.0.1:5199/   # 4.9  ISA-5.1 tags + line numbers
+node scripts/verify-nozzles.cjs      http://127.0.0.1:5199/   # 4.9  nozzle schedule
+node scripts/verify-numbering.cjs    http://127.0.0.1:5199/   # 4.3  configurable numbering
+node scripts/verify-undo.cjs         http://127.0.0.1:5199/   # 4.10 undo / redo
+node scripts/verify-freeline.cjs     http://127.0.0.1:5199/   # 4.1  free-line carve-out
+node scripts/verify-bug3.cjs         http://127.0.0.1:5199/   # 4.3  connection preview router
+```
+
+Each prints a `*_PASS` line and exits 0. They are driven by real browser input
+(Playwright/CDP), never synthetic DOM events: React Flow's drag handling binds
+move listeners on `window`, so a gate that faked input would pass while the
+feature was broken in the user's hands. Two further rules the gates encode:
+
+- **Assert on the thing that would break, not a proxy for it.** Undo is checked
+  by comparing node POSITIONS and undo-DEPTH DELTAS, never node counts — a
+  no-op undo leaves the count unchanged and would satisfy a lax test.
+- **Mutation-test the gate.** A gate that has never failed is not evidence.
+  Each fix behind §4.3 and §4.10 was reverted in turn to confirm the gate
+  fails on the specific checks that map to it.
 
 ---
 
@@ -788,7 +835,7 @@ All are **unbuilt**, verified against source, not inferred from absence.
    material available — it turns the validity engine into something that
    knows *process* rules, not just graph rules — and it should be built on
    top of a sound connectivity model, not before it.
-7. ~~**Undo/redo.**~~ **RESOLVED 2026-09-13 (`ae3d170`), now §4.10.** The
+7. ~~**Undo/redo.**~~ **RESOLVED 2026-09-13 (`cdccd2c`), now §4.10.** The
    deferral was re-taken and undo/redo is built and gated
    (`scripts/verify-undo.cjs`, 19 checks, driven by real mouse input). Three
    real defects were found and fixed by that gate after the feature looked
@@ -810,7 +857,7 @@ All are **unbuilt**, verified against source, not inferred from absence.
 
 ## 8. Out of Scope for v2.0 (explicitly deferred, may revisit later)
 
-- ~~Undo/redo~~ — **NO LONGER DEFERRED; built 2026-09-13 (`ae3d170`), §4.10.**
+- ~~Undo/redo~~ — **NO LONGER DEFERRED; built 2026-09-13 (`cdccd2c`), §4.10.**
   The deferral was taken against a 30-symbol single-sheet tool; the tool is now
   67 symbols, multi-sheet, with derived lists and a numbering panel, and the
   cost of a mis-drag grew with it while the cost of building undo did not.
