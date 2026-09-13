@@ -7,7 +7,34 @@
 
 ---
 
-## 0. Revision note (2026-09-12)
+## 0. Revision note (2026-09-13)
+
+Records two changes made after the 2026-09-12 pass, both closing gaps
+between the document and the built artifact rather than adding scope:
+
+**1. The free-line carve-out is documented (§4.1).** The build shipped a
+mode where a line released over empty canvas draws without requiring a
+nozzle on either end. That contradicts §4.1's original absolute rule
+("free-floating line ends are flagged and block export"), so the
+document was silently wrong about its own product. The carve-out is now
+written down with its tradeoff stated plainly, including that it
+deliberately weakens the engine's "structurally correct, not just
+visually plausible" promise. Recording a known hole is the point — a
+reviewer who finds an undocumented carve-out reads it as an oversight,
+which is a worse failure than the carve-out itself.
+
+**2. §4.2 now reflects the real library size (67 symbols / 161 ports,
+up from 30).** The 37-symbol expansion was locked earlier the same day
+and is now committed. §4.2 also gains the port-conformance acceptance
+gate (`scripts/verify-port-outline.cjs`, must print
+`PORT_OUTLINE_PASS`), promoted from an ad-hoc probe to a repo-kept,
+reproducible check that every new symbol is expected to satisfy before
+commit. The gate measures distance to *drawn ink*, not to the bounding
+box — a distinction that has already caught two real defects.
+
+---
+
+## 0a. Revision note (2026-09-12)
 
 Added four new goals/functional requirements after a web-research pass
 comparing how established P&ID products (Siemens COMOS, AVEVA Diagrams,
@@ -127,6 +154,30 @@ enterprise-PLM territory):**
 - **Connection validity.** A pipe/signal line is only valid if both ends
   are attached to a defined connection port on a symbol. Free-floating
   line ends are flagged and block export.
+- **Carve-out: free lines (SHIPPED — explicit user decision).** A line
+  drawn by the user that is released over empty canvas is stored as an
+  ordinary edge carrying `data.freePipe: true` plus its two canvas-space
+  endpoints (`data.freeStart` / `data.freeEnd`). Such a line is
+  **exempt from connection validity by definition** — it has no nozzles,
+  so it cannot dangle. The exemption is *targeted*: it keys off the
+  explicit flag, never off "missing handles", so a genuinely
+  unconnected process pipe is still reported as `unconnected-pipe` and
+  still blocks export.
+  - **Known tradeoff, accepted deliberately.** The engine's core promise
+    is "structurally correct, not just visually plausible." Free lines
+    introduce a hole in that promise: a line that terminates nowhere is
+    legal ink. Rationale: engineers sketching a P&ID need to draw a
+    tie-in or a future/erection line without inventing a fake nozzle to
+    host it, and forcing that produces *worse* drawings than allowing a
+    plainly unconnected one. The hole is bounded — free lines are one
+    boolean flag, they are excluded from the connected-edge set passed
+    to react-flow and rendered in their own overlay, and they never
+    satisfy a port. A reviewer can enumerate every one of them with a
+    single filter on `data.freePipe`.
+  - Rationale for storing them as real edges rather than a separate
+    array: they round-trip through the same versioned JSON envelope,
+    autosave, and undo path as everything else, with no second
+    persistence format to keep in sync.
 - **Symbols must expose defined ports**, not just generic "attach
   anywhere on the shape" behavior. Each symbol type declares its valid
   connection points (e.g. a vessel has top/bottom/side nozzle points, not
@@ -178,6 +229,29 @@ enterprise-PLM territory):**
   unrelated files to add a symbol (this was fine in v1 already via the
   `EquipmentKind` union + symbols dict — keep that pattern, formalize
   it as a documented convention).
+- **SHIPPED STATUS (2026-09-13): the library now holds 67 symbols across
+  11 categories, 161 declared ports.** The original 30-symbol core set is
+  complete, plus a 37-symbol expansion authored against ISA-5.1 / ISO
+  10628: storage tanks (cone/floating roof), knock-out drum, 3-phase
+  separator, silo, complete distillation column, absorber tower,
+  fixed-bed + fluidized-bed reactors, gear/diaphragm/screw/vacuum pumps,
+  centrifugal compressor, blower, globe/butterfly/3-way/motor-operated/
+  regulator valves, FT/PT/TT/LT/PDT/AT transmitters, DCS controller,
+  local indicator, kettle reboiler, condenser, air cooler, fired heater,
+  evaporator, spectacle blind, expansion joint, steam trap, pipe support.
+  - **Acceptance gate (objective, reproducible):**
+    `node scripts/verify-port-outline.cjs http://127.0.0.1:5199/` must
+    print `PORT_OUTLINE_PASS`. It mounts every registered kind as a real
+    node in headless Chromium and measures each declared port's distance
+    to the symbol's actual *drawn ink* — not to its bounding box. A port
+    on the bounding box can still float in empty space beside the shape
+    (the "nozzle floats off the vessel" defect), so box-vs-shape is the
+    thing that must be measured. Any new symbol is expected to pass this
+    before it is committed.
+  - **`pipe-support` declares zero ports on purpose.** It is a drawing
+    annotation (like draw.io's non-connectable stencils), not equipment.
+    The validity engine has no isolated-node rule, so a zero-port node is
+    legal and reports no error.
 
 ### 4.3 Drafting canvas
 - Drag-drop from palette (right-hand, categorized — see 4.2), connect
