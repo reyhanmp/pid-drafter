@@ -31,7 +31,18 @@ async function seedProject(page, project) {
   await page.evaluate((p) => {
     window.localStorage.setItem(
       'pid-drafter.project.autosave.v2',
-      JSON.stringify({ schema: 'pid-drafter/project', version: 2, savedAt: new Date().toISOString(), projectName: p.projectName, sheets: p.sheets }),
+      JSON.stringify({
+        schema: 'pid-drafter/project',
+        version: 2,
+        savedAt: new Date().toISOString(),
+        projectName: p.projectName,
+        sheets: p.sheets,
+        // Pass `numbering` through when the fixture supplies it. Omitting this
+        // made every seeded project silently fall back to DEFAULT numbering, so
+        // a fixture that configured the AREA tag style still rendered plain
+        // `V-101` tags and looked like an app bug rather than a fixture gap.
+        ...(p.numbering ? { numbering: p.numbering } : {}),
+      }),
     );
   }, project);
   await page.reload({ waitUntil: 'load' });

@@ -12,6 +12,7 @@
  * future format change can migrate rather than fail.
  */
 import type { Edge, Node } from '@xyflow/react';
+import type { NumberingConfig } from './numbering';
 
 /** Envelope marker written into saved JSON files, for self-identification. */
 export const PROJECT_SCHEMA_ID = 'pid-drafter/project';
@@ -35,6 +36,13 @@ export interface Project {
   version: number;
   projectName: string;
   sheets: ProjectSheet[];
+  /**
+   * Configurable tag/line numbering (PRD §4.3). OPTIONAL so that every project
+   * saved before this field existed still loads: a missing value means the
+   * defaults, which reproduce the old hardcoded `V-101`-style behaviour. Read
+   * it through `normalizeNumbering()` rather than using it raw.
+   */
+  numbering?: NumberingConfig;
 }
 
 /** Default name for a freshly created sheet at index `n` (0-based). */

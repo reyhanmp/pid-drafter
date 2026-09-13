@@ -29,25 +29,26 @@ import type { EquipmentNodeData, PipeEdgeData } from '../types/diagram';
 import type { Node as RFNode } from '@xyflow/react';
 import { AUTOSAVE_DEBOUNCE_MS, isStorageAvailable, readAutosave, storageUnavailableNotice, writeAutosave } from './autosave';
 import { createEmptyProject, defaultSheetName, newSheetId, type Project, type ProjectSheet } from './types';
+import {
+  normalizeNumbering,
+  nextTagFor,
+  planUnnumberedLines,
+  type LineNumberingScheme,
+  type NumberingConfig,
+  type TagNumberingScheme,
+} from './numbering';
 
 /**
- * Next free tag for a symbol's prefix, derived by scanning every tag
- * already used anywhere in the PROJECT — so auto-tagging can never
- * introduce a duplicate, including across sheets (PRD §4.1/§4.8).
- * Seeded at 101 like the original counter (e.g. first vessel => "V-101").
+ * Auto-tagging now reads the project's NUMBERING CONFIG (PRD §4.3) rather than
+ * a hardcoded 101 seed — see ./numbering.ts, which owns the scheme, the
+ * collision guard and the fallback to the old behaviour for projects saved
+ * before the config existed.
+ *
+ * The duplicate guarantee previously provided here is preserved: nextTagFor()
+ * scans every tag in the whole project (all sheets) and advances past any
+ * collision, so auto-tagging still cannot introduce the duplicate-tag error
+ * the validity engine refuses to export (PRD §4.1/§4.8).
  */
-function nextTag(prefix: string, sheets: ProjectSheet[]): string {
-  const pattern = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`);
-  let max = 100;
-  for (const sheet of sheets) {
-    for (const node of sheet.nodes) {
-      const tag = ((node.data as unknown as EquipmentNodeData).tag ?? '').trim();
-      const m = tag.match(pattern);
-      if (m) max = Math.max(max, Number(m[1]));
-    }
-  }
-  return `${prefix}-${max + 1}`;
-}
 
 export interface ProjectStore {
   project: Project;
@@ -90,6 +91,18 @@ export interface ProjectStore {
   replaceProject: (project: Project) => void;
   /** Drop a new equipment/instrument instance of `kind` at a canvas position. */
   addNodeFromSymbol: (kind: string, position: { x: number; y: number }) => void;
+
+  // ── Configurable numbering (PRD §4.3) ──
+  /** The project's numbering config, always fully populated (never undefined). */
+  numbering: NumberingConfig;
+  setTagNumbering: (patch: Partial<TagNumberingScheme>) => void;
+  setLineNumbering: (patch: Partial<LineNumberingScheme>) => void;
+  /**
+   * Assign line numbers to every unnumbered line on the ACTIVE sheet, in
+   * reading order. Lines that already carry a number are left untouched.
+   * Returns the number of lines numbered.
+   */
+  numberUnnumberedLines: () => number;
 }
 
 export function useProject(): ProjectStore {
@@ -310,7 +323,7 @@ export function useProject(): ProjectStore {
             handles: toReactFlowHandles(symbol.ports),
             data: {
               kind: symbol.kind,
-              tag: nextTag(symbol.tagPrefix, prev.sheets),
+              tag: nextTagFor(symbol.tagPrefix, prev.sheets, normalizeNumbering(prev.numbering).tags),
               width: symbol.defaultWidth,
               height: symbol.defaultHeight,
               // Stable callback reference stashed on node.data so
@@ -393,6 +406,59 @@ export function useProject(): ProjectStore {
 
   const dismissAutosaveNotice = useCallback(() => setAutosaveNotice(null), []);
 
+  // ── Configurable numbering (PRD §4.3) ──
+  // Always normalised on read, so a project loaded from an older file (no
+  // `numbering` block at all) presents a complete config rather than
+  // undefined fields the UI would have to guard at every use.
+  const numbering = useMemo(() => normalizeNumbering(project.numbering), [project.numbering]);
+
+  const setTagNumbering = useCallback((patch: Partial<TagNumberingScheme>) => {
+    setProject((prev) => ({
+      ...prev,
+      numbering: {
+        ...normalizeNumbering(prev.numbering),
+        tags: { ...normalizeNumbering(prev.numbering).tags, ...patch },
+      },
+    }));
+  }, []);
+
+  const setLineNumbering = useCallback((patch: Partial<LineNumberingScheme>) => {
+    setProject((prev) => ({
+      ...prev,
+      numbering: {
+        ...normalizeNumbering(prev.numbering),
+        lines: { ...normalizeNumbering(prev.numbering).lines, ...patch },
+      },
+    }));
+  }, []);
+
+  /**
+   * Bulk-number the active sheet's unnumbered lines.
+   *
+   * Deliberately NOT automatic: numbers appearing without being asked for
+   * would be a surprise on an existing drawing, and this tool does not
+   * renumber work it did not assign. The plan is computed first (see
+   * planUnnumberedLines) so the numbering is deterministic and testable, then
+   * applied in one state update rather than one per line.
+   */
+  const numberUnnumberedLines = useCallback((): number => {
+    const scheme = normalizeNumbering(project.numbering).lines;
+    const sheet = project.sheets.find((s) => s.id === resolvedActiveId);
+    if (!sheet) return 0;
+    const plan = planUnnumberedLines(sheet, scheme);
+    const byId = new Map(plan.filter((p) => p.proposal).map((p) => [p.edgeId, p.proposal as string]));
+    if (byId.size === 0) return 0;
+    patchActiveSheet((s) => ({
+      ...s,
+      edges: s.edges.map((e) => {
+        const assigned = byId.get(e.id);
+        if (!assigned) return e;
+        return { ...e, data: { ...(e.data as object), lineNumber: assigned } as typeof e.data };
+      }),
+    }));
+    return byId.size;
+  }, [patchActiveSheet, project.numbering, project.sheets, resolvedActiveId]);
+
   // ── Debounced localStorage autosave (PRD §4.4) ──
   const firstRun = useRef(true);
   useEffect(() => {
@@ -449,5 +515,9 @@ export function useProject(): ProjectStore {
     commitTagEdit,
     replaceProject,
     addNodeFromSymbol,
+    numbering,
+    setTagNumbering,
+    setLineNumbering,
+    numberUnnumberedLines,
   };
 }

@@ -16,6 +16,7 @@ import PipeEdge from './edges/PipeEdge';
 import PipeConnectionLine from './edges/PipeConnectionLine';
 import FreeLineLayer from './components/FreeLineLayer';
 import EngineeringListsPanel from './components/EngineeringListsPanel';
+import NumberingSettingsPanel from './components/NumberingSettingsPanel';
 import SymbolPalette from './components/SymbolPalette';
 import ValidationPanel from './components/ValidationPanel';
 import DataSheetPanel from './components/DataSheetPanel';
@@ -66,6 +67,10 @@ function DrawingCanvas() {
     removeEdge,
     autosaveNotice,
     dismissAutosaveNotice,
+    numbering,
+    setTagNumbering,
+    setLineNumbering,
+    numberUnnumberedLines,
   } = store;
 
   const nodes = activeSheet?.nodes ?? [];
@@ -79,6 +84,22 @@ function DrawingCanvas() {
    */
   const freeLines = useMemo(
     () => edges.filter((e) => (e.data as PipeEdgeData | undefined)?.freePipe === true),
+    [edges],
+  );
+
+  /**
+   * How many lines on the ACTIVE sheet still need a number (PRD §4.3).
+   * Counted here rather than in the settings panel so the panel stays a
+   * presentation component and the number is derived from the same `edges`
+   * the canvas renders. Free lines are excluded — they are not numbered runs.
+   */
+  const unnumberedOnActiveSheet = useMemo(
+    () =>
+      edges.filter((e) => {
+        const d = e.data as PipeEdgeData | undefined;
+        if (d?.freePipe) return false;
+        return !(d?.lineNumber ?? '').trim();
+      }).length,
     [edges],
   );
   const pipedEdges = useMemo(
@@ -95,6 +116,7 @@ function DrawingCanvas() {
   const [selectedFreeLineId, setSelectedFreeLineId] = useState<string | null>(null);
   /** PRD §4.6 engineering-lists view — derived on render from `sheets`. */
   const [showLists, setShowLists] = useState(false);
+  const [showNumbering, setShowNumbering] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -370,6 +392,7 @@ function DrawingCanvas() {
     <div className="app-shell">
       <div className="app-main">
         <ProjectTopBar
+          onOpenNumbering={() => setShowNumbering(true)}
           project={project}
           projectName={projectName}
           onProjectNameChange={setProjectName}
@@ -382,6 +405,17 @@ function DrawingCanvas() {
             sheets={sheets}
             projectName={projectName}
             onClose={() => setShowLists(false)}
+          />
+        )}
+        {showNumbering && (
+          <NumberingSettingsPanel
+            numbering={numbering}
+            sheets={sheets}
+            onTagChange={setTagNumbering}
+            onLineChange={setLineNumbering}
+            unnumberedCount={unnumberedOnActiveSheet}
+            onNumberUnnumbered={numberUnnumberedLines}
+            onClose={() => setShowNumbering(false)}
           />
         )}
         {autosaveNotice && (

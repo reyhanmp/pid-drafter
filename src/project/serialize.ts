@@ -57,6 +57,7 @@
 import type { Edge, Node } from '@xyflow/react';
 import { symbolsByKind } from '../symbols';
 import { PROJECT_SCHEMA_ID, PROJECT_VERSION, type Project, type ProjectSheet } from './types';
+import { normalizeNumbering } from './numbering';
 
 /** File-format shape: the in-memory Project plus a schema marker + timestamp. */
 export interface ProjectFileEnvelope {
@@ -64,6 +65,8 @@ export interface ProjectFileEnvelope {
   version: number;
   savedAt: string;
   projectName: string;
+  /** Optional numbering config (PRD §4.3); absent in files written before v2.1. */
+  numbering?: unknown;
   sheets: ProjectSheet[];
 }
 
@@ -91,6 +94,7 @@ export function serializeProject(project: Project): ProjectFileEnvelope {
     version: PROJECT_VERSION,
     savedAt: new Date().toISOString(),
     projectName: project.projectName,
+    numbering: normalizeNumbering(project.numbering),
     sheets: project.sheets.map((s) => ({
       ...s,
       nodes: s.nodes.map((n) => ({ ...n, data: sanitizeNodeData(n.data as Record<string, unknown>) })),
@@ -322,6 +326,10 @@ export function parseProjectJson(text: string): LoadResult {
   const project: Project = {
     version: version as number,
     projectName: obj.projectName as string,
+    // A missing or partial `numbering` block is NOT an error: every project
+    // saved before this field existed must still load, and normalizeNumbering
+    // fills in defaults that reproduce the previous hardcoded behaviour.
+    numbering: normalizeNumbering(obj.numbering),
     sheets: parsedSheets.slice().sort((a, b) => a.order - b.order).map((s, i) => ({ ...s, order: i })),
   };
   return { ok: true, project, errors: [] };

@@ -1086,3 +1086,269 @@
 .nozzle-item-row input[list] {
   font-size: 11.5px;
 }
+
+/* Numbering settings (PRD 4.3) */
+.numbering-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 18, 20, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.numbering-modal {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  width: min(760px, 94vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.numbering-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid #e6e3dc;
+}
+
+.numbering-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.numbering-subtitle {
+  font-size: 11.5px;
+  color: #7a756c;
+  flex: 1;
+}
+
+.numbering-close {
+  border: none;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b665e;
+  padding: 0 4px;
+}
+
+.numbering-close:hover {
+  color: #1a1a1a;
+}
+
+.numbering-body {
+  /* `flex: 1` + `min-height: 0` are both required for this to scroll inside the
+     panel's max-height instead of overflowing past it. Without them a flex
+     child defaults to `min-height: auto` and grows to fit its content, so the
+     last row of fields (Sequence pad / Suffix) was pushed off the bottom of the
+     modal and unreadable at the default viewport. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px 20px;
+}
+
+.numbering-section + .numbering-section {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #eeece6;
+}
+
+.numbering-section h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4a4640;
+}
+
+.numbering-section h4 {
+  margin: 12px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a4640;
+}
+
+.numbering-note {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #7a756c;
+}
+
+.numbering-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.numbering-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 180px;
+  min-width: 150px;
+}
+
+.numbering-field-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #3d3933;
+}
+
+.numbering-field select {
+  font-size: 12.5px;
+  padding: 5px 7px;
+  border: 1px solid #d8d4cc;
+  border-radius: 4px;
+  font-family: inherit;
+  background: #fff;
+}
+
+.numbering-field input {
+  font-size: 12.5px;
+  padding: 5px 7px;
+  border: 1px solid #d8d4cc;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.numbering-field input:focus {
+  outline: none;
+  border-color: #8aa8c8;
+}
+
+.numbering-hint {
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #918b81;
+}
+
+.numbering-pattern {
+  margin: 0 0 12px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  background: #f7f6f2;
+  border: 1px solid #e6e3dc;
+  border-radius: 4px;
+  padding: 6px 9px;
+  color: #3d3933;
+  word-break: break-all;
+}
+
+.numbering-prefix-block {
+  margin-top: 6px;
+}
+
+.numbering-prefix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px 14px;
+}
+
+.numbering-prefix-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.numbering-prefix-name {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3d3933;
+  min-width: 34px;
+}
+
+.numbering-prefix-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #d8d4cc;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.numbering-preview {
+  margin-top: 14px;
+  background: #f7f6f2;
+  border: 1px solid #e6e3dc;
+  border-radius: 4px;
+  padding: 9px 11px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.numbering-preview-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7a756c;
+}
+
+.numbering-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.numbering-preview-list code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid #ddd9d1;
+  border-radius: 3px;
+  padding: 2px 7px;
+  color: #1a1a1a;
+}
+
+.numbering-bulk {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed #e0dcd4;
+}
+
+.numbering-bulk-btn {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 4px;
+  border: 1px solid #b9c9d9;
+  background: #eef4fa;
+  color: #24466b;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.numbering-bulk-btn:hover:not(:disabled) {
+  background: #e2edf7;
+}
+
+.numbering-bulk-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  border-color: #ddd9d1;
+  background: #f4f3f0;
+  color: #918b81;
+}
+
+.numbering-bulk-result {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: #356147;
+}

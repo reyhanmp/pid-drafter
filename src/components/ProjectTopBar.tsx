@@ -4,8 +4,9 @@ import { parseProjectJson, projectFileName, projectToJson, serializeProject } fr
 
 /**
  * Project top bar (PRD §4.4): project-name field, JSON save (download),
- * JSON load (file picker with STRICT validation), and the debounced
- * autosave status readout.
+ * JSON load (file picker with STRICT validation), the debounced autosave
+ * status readout, the engineering-lists view (§4.6) and the numbering
+ * settings (§4.3).
  *
  * Load safety: the picked file is fully validated before anything is
  * handed back to the caller, so a bad file produces a clear message and
@@ -18,6 +19,7 @@ export default function ProjectTopBar({
   autosaveStatus,
   onLoad,
   onOpenLists,
+  onOpenNumbering,
 }: {
   project: Project;
   projectName: string;
@@ -25,6 +27,7 @@ export default function ProjectTopBar({
   autosaveStatus: 'idle' | 'saving' | 'saved' | 'unavailable';
   onLoad: (project: Project) => void;
   onOpenLists: () => void;
+  onOpenNumbering: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadErrors, setLoadErrors] = useState<string[]>([]);
@@ -102,6 +105,13 @@ export default function ProjectTopBar({
         title="Auto-generated line / valve / instrument / equipment lists, derived from the drawing"
       >
         Lists
+      </button>
+      <button
+        onClick={onOpenNumbering}
+        data-testid="open-numbering-btn"
+        title="Configure the tag and line-number scheme for this project"
+      >
+        Numbering
       </button>
       <button onClick={handleSave} data-testid="save-json-btn" title="Download the whole project as JSON">
         Save JSON
