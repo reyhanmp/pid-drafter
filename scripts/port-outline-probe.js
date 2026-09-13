@@ -114,24 +114,33 @@ window.__portOutlineProbe = function (kinds) {
       const paint = getComputedStyle(el).stroke;
       if (!paint || paint === 'none' || paint === 'rgba(0, 0, 0, 0)') continue;
       // element's local -> screen -> node-local (handles viewBox scaling)
-      const elRect = el.getBoundingClientRect();
-      const elIsScaled = el.getBBox && el.getBBox().width > 0;
-      let ex = 0, ey = 0, es = 1;
-      if (elIsScaled) {
-        try {
-          const bb = el.getBBox();
-          const ctm = el.getCTM ? el.getCTM() : null;
-          // map element-local geometric point -> screen via CTM
+      // Each symbol's <svg> is sized exactly to the node box and carries a
+      // viewBox of the same dimensions, so its user space is 1:1 with
+      // node-local px. getCTM() maps element user space into that viewport
+      // space but does NOT include the react-flow zoom (which lives on an
+      // ancestor HTML element), so the result is ALREADY node-local — it must
+      // NOT be pushed through toLocal() a second time. (Applying toLocal here
+      // double-transforms the point and inflates every distance by the
+      // viewport origin divided by zoom.)
+      let ex = 0, ey = 0;
+      try {
+        const ctm = el.getCTM ? el.getCTM() : null;
+        if (ctm) {
           for (const p of samplePoints(el)) {
-            const sp = ctm
-              ? { x: p.x * ctm.a + p.y * ctm.c + ctm.e, y: p.x * ctm.b + p.y * ctm.d + ctm.f }
-              : { x: p.x + elRect.x, y: p.y + elRect.y };
-            samples.push({ ...toLocal(sp.x, sp.y), sw });
+            samples.push({
+              x: p.x * ctm.a + p.y * ctm.c + ctm.e,
+              y: p.x * ctm.b + p.y * ctm.d + ctm.f,
+              sw,
+            });
           }
-          void bb; void ex; void ey; void es;
-        } catch (e) {
-          /* skip shape */
+        } else {
+          // No CTM available (detached/hidden): fall back to screen mapping.
+          for (const p of samplePoints(el)) {
+            samples.push({ ...toLocal(p.x + ex, p.y + ey), sw });
+          }
         }
+      } catch (e) {
+        /* skip shape */
       }
     }
 

@@ -10,66 +10,151 @@ import type { SymbolCategory, SymbolDefinition } from './types';
 
 import vesselVertical from './vessel-vertical';
 import vesselHorizontal from './vessel-horizontal';
+import storageTankConeRoof from './storage-tank-cone-roof';
+import storageTankFloatingRoof from './storage-tank-floating-roof';
+import knockoutDrum from './knockout-drum';
+import separator3Phase from './separator-3phase';
+import silo from './silo';
 import pumpCentrifugal from './pump-centrifugal';
+import pumpGear from './pump-gear';
+import pumpDiaphragm from './pump-diaphragm';
+import pumpScrew from './pump-screw';
+import pumpVacuum from './pump-vacuum';
+import compressorCentrifugal from './compressor-centrifugal';
+import blower from './blower';
 import valveGate from './valve-gate';
 import valveControl from './valve-control';
-import instrumentCircle from './instrument-circle';
-import instrumentSquare from './instrument-square';
-import agitator from './agitator';
-import heatExchanger from './heat-exchanger';
 import valveCheck from './valve-check';
 import valveBall from './valve-ball';
 import valveRelief from './valve-relief';
 import valveSolenoid from './valve-solenoid';
+import valveGlobe from './valve-globe';
+import valveButterfly from './valve-butterfly';
+import valve3Way from './valve-3way';
+import valveMotorOperated from './valve-motor-operated';
+import valveRegulator from './valve-regulator';
+import instrumentCircle from './instrument-circle';
+import instrumentSquare from './instrument-square';
+import transmitterFlow from './transmitter-flow';
+import transmitterPressure from './transmitter-pressure';
+import transmitterTemp from './transmitter-temp';
+import transmitterLevel from './transmitter-level';
+import transmitterDp from './transmitter-dp';
+import analyzer from './analyzer';
+import controllerDcs from './controller-dcs';
+import indicatorLocal from './indicator-local';
+import agitator from './agitator';
+import heatExchanger from './heat-exchanger';
+import heatExchangerPlate from './heat-exchanger-plate';
+import heatExchangerDoublePipe from './heat-exchanger-double-pipe';
+import hxKettleReboiler from './hx-kettle-reboiler';
+import hxCondenser from './hx-condenser';
+import hxAirCooler from './hx-air-cooler';
+import heaterFired from './heater-fired';
+import hxEvaporator from './hx-evaporator';
 import reducerConcentric from './reducer-concentric';
 import restrictionOrifice from './restriction-orifice';
 import strainer from './strainer';
 import flangePair from './flange-pair';
+import instrumentFlowmeterInline from './instrument-flowmeter-inline';
+import spectacleBlind from './spectacle-blind';
+import expansionJoint from './expansion-joint';
+import steamTrap from './steam-trap';
+import pipeSupport from './pipe-support';
+import columnTray from './column-tray';
+import columnPacked from './column-packed';
+import columnComplete from './column-complete';
+import absorberTower from './absorber-tower';
+import reactorCstr from './reactor-cstr';
+import reactorPfr from './reactor-pfr';
+import reactorJacketed from './reactor-jacketed';
+import reactorFixedBed from './reactor-fixed-bed';
+import reactorFluidizedBed from './reactor-fluidized-bed';
 import relayDiamond from './relay-diamond';
 import ventTerminator from './vent-terminator';
 import drainTerminator from './drain-terminator';
 import offpageConnector from './offpage-connector';
-import columnTray from './column-tray';
-import columnPacked from './column-packed';
-import reactorCstr from './reactor-cstr';
-import reactorPfr from './reactor-pfr';
-import reactorJacketed from './reactor-jacketed';
-import heatExchangerPlate from './heat-exchanger-plate';
-import heatExchangerDoublePipe from './heat-exchanger-double-pipe';
-import instrumentFlowmeterInline from './instrument-flowmeter-inline';
 import instrumentGaugePressure from './instrument-gauge-pressure';
 
 export const allSymbols: SymbolDefinition[] = [
+  // Vessels
   vesselVertical,
   vesselHorizontal,
+  storageTankConeRoof,
+  storageTankFloatingRoof,
+  knockoutDrum,
+  separator3Phase,
+  silo,
+  // Columns
+  columnTray,
+  columnPacked,
+  columnComplete,
+  absorberTower,
+  // Reactors
+  reactorCstr,
+  reactorPfr,
+  reactorJacketed,
+  reactorFixedBed,
+  reactorFluidizedBed,
+  // Pumps & machinery
   pumpCentrifugal,
+  pumpGear,
+  pumpDiaphragm,
+  pumpScrew,
+  pumpVacuum,
+  compressorCentrifugal,
+  blower,
+  // Valves
   valveGate,
   valveControl,
-  instrumentCircle,
-  instrumentSquare,
-  agitator,
-  heatExchanger,
   valveCheck,
   valveBall,
   valveRelief,
   valveSolenoid,
+  valveGlobe,
+  valveButterfly,
+  valve3Way,
+  valveMotorOperated,
+  valveRegulator,
+  // Instruments
+  instrumentCircle,
+  instrumentSquare,
+  transmitterFlow,
+  transmitterPressure,
+  transmitterTemp,
+  transmitterLevel,
+  transmitterDp,
+  analyzer,
+  controllerDcs,
+  indicatorLocal,
+  instrumentGaugePressure,
+  // Agitators
+  agitator,
+  // Heat exchangers
+  heatExchanger,
+  heatExchangerPlate,
+  heatExchangerDoublePipe,
+  hxKettleReboiler,
+  hxCondenser,
+  hxAirCooler,
+  heaterFired,
+  hxEvaporator,
+  // Piping accessories
   reducerConcentric,
   restrictionOrifice,
   strainer,
   flangePair,
+  instrumentFlowmeterInline,
+  spectacleBlind,
+  expansionJoint,
+  steamTrap,
+  pipeSupport,
+  // Signal & logic
   relayDiamond,
+  // Terminators
   ventTerminator,
   drainTerminator,
   offpageConnector,
-  columnTray,
-  columnPacked,
-  reactorCstr,
-  reactorPfr,
-  reactorJacketed,
-  heatExchangerPlate,
-  heatExchangerDoublePipe,
-  instrumentFlowmeterInline,
-  instrumentGaugePressure,
 ];
 
 /** Lookup table keyed by symbol kind (used by node renderers). */
