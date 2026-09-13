@@ -35,7 +35,7 @@ import type { SymbolCategory } from '../symbols/types';
 import type { ProjectSheet } from '../project/types';
 import type { EquipmentNodeData, PipeEdgeData } from '../types/diagram';
 import { parseLoopNumber } from '../validation/instrumentLoops';
-import { fieldsForCategory } from '../dataSheet/fieldSchemas';
+import { fieldsForKind } from '../dataSheet/fieldSchemas';
 
 const INSTRUMENT_CATEGORIES: ReadonlySet<SymbolCategory> = new Set(['Instruments', 'Signal & Logic']);
 const VALVE_CATEGORIES: ReadonlySet<SymbolCategory> = new Set(['Valves']);
@@ -132,21 +132,63 @@ function instrumentFunctionLabel(tag: string | undefined): string {
   return name ? `${code} — ${name}` : code;
 }
 
-/** Priority-ordered data-sheet fields worth surfacing in the equipment list. */
+/**
+ * Priority-ordered data-sheet fields worth surfacing in the equipment list.
+ *
+ * Ordered by what a process engineer reads first: what it does, then the
+ * design envelope, then the duty/performance figure that sizes it, then
+ * mechanical. Not every symbol has every field — the loop below simply skips
+ * unpopulated ids, so one order works across all categories and the list
+ * still reads top-down in a sensible order per row.
+ */
 const KEY_FIELD_ORDER = [
+  // Process duty
   'service',
+  'fluidPumped',
+  'reactionType',
+  'columnType',
+  'exchangerType',
+  'reactorType',
+  'pumpType',
+  'meterType',
+  'impellerType',
+  'valveType',
+  // Design envelope
   'designPressure',
   'designTemperature',
+  'designPressureShell',
+  'designPressureTube',
   'operatingPressure',
   'operatingTemperature',
+  'designCode',
+  'pressureRating',
+  // Sizing / performance
   'designFlowRate',
   'designHead',
   'duty',
+  'firingRate',
+  'boilupRate',
+  'evaporationRate',
   'volume',
+  'area',
+  'overallU',
+  'lmtd',
   'powerRating',
+  'driverPower',
+  'speed',
+  'npshAvailable',
+  'conversion',
+  'residenceTime',
+  'refluxRatio',
+  'numberOfStages',
+  // Mechanical
   'materialOfConstruction',
+  'bodyMaterial',
+  'shellMaterial',
+  'tubeMaterial',
   'size',
-  'pressureRating',
+  'endConnection',
+  'insulation',
 ];
 
 /**
@@ -160,7 +202,7 @@ function keyDataSheetCell(node: EquipmentNodeData): string {
   const symbol = symbolsByKind[node.kind];
   if (!symbol) return '';
   const props = node.properties ?? {};
-  const known = new Map(fieldsForCategory(symbol.category).map((f) => [f.id, f]));
+  const known = new Map(fieldsForKind(node.kind, symbol.category).map((f) => [f.id, f]));
   const parts: string[] = [];
   for (const id of KEY_FIELD_ORDER) {
     const raw = props[id];

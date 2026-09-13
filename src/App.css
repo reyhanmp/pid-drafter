@@ -971,3 +971,23 @@
   font-size: 11.5px;
   color: #6a6a4a;
 }
+
+/* --- Data-sheet field groups (chemical-engineering depth) ---
+   A reactor sheet declares ~25 fields across five groups; without headings
+   it reads as an undifferentiated column of inputs. The group heading is
+   deliberately quieter than the field labels so it structures rather than
+   competes. */
+.data-sheet-group + .data-sheet-group {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #ececec;
+}
+
+.data-sheet-group-heading {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #7a8794;
+  margin-bottom: 5px;
+}

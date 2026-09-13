@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import type { SymbolPort, PortDirection } from '../symbols/types';
 import { symbolsByKind } from '../symbols';
 import { getEffectivePorts } from '../symbols/effectivePorts';
-import { fieldsForCategory } from '../dataSheet/fieldSchemas';
+import { fieldsForKind } from '../dataSheet/fieldSchemas';
 import type { EquipmentNodeData } from '../types/diagram';
 import { isOffpageConnector, type SheetRef } from '../validation/offpageReferences';
 import OffpageTargetPanel from './OffpageTargetPanel';
@@ -88,7 +89,23 @@ export default function DataSheetPanel({
   const symbol = symbolsByKind[data.kind];
   if (!symbol) return null;
   const ports = getEffectivePorts(data.kind, data.ports);
-  const fields = fieldsForCategory(symbol.category);
+  const fields = fieldsForKind(data.kind, symbol.category);
+  /**
+   * Group fields for display, preserving first-seen order. A sheet like
+   * Reactors declares Process -> Reaction -> Design -> Performance ->
+   * Mechanical; rendering it as one column of 25 inputs would bury the
+   * engineering structure that makes the sheet useful.
+   */
+  const fieldGroups = useMemo(() => {
+    const groups = new Map<string, typeof fields>();
+    for (const f of fields) {
+      const key = f.group ?? '';
+      const bucket = groups.get(key);
+      if (bucket) bucket.push(f);
+      else groups.set(key, [f]);
+    }
+    return [...groups.entries()];
+  }, [fields]);
   const properties = data.properties ?? {};
   const rotation = data.rotation ?? 0;
 
@@ -156,25 +173,38 @@ export default function DataSheetPanel({
           </button>
         </label>
 
-        {fields.map((f) => (
-          <label className="data-sheet-field" key={f.id}>
-            <span>
-              {f.label}
-              {f.unit ? ` (${f.unit})` : ''}
-            </span>
-            {f.options ? (
-              <select value={properties[f.id] ?? ''} onChange={(e) => setProperty(f.id, e.target.value)}>
-                <option value="" />
-                {f.options.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input value={properties[f.id] ?? ''} onChange={(e) => setProperty(f.id, e.target.value)} />
-            )}
-          </label>
+        {fieldGroups.map(([groupName, groupFields]) => (
+          <div className="data-sheet-group" key={groupName || '_ungrouped'}>
+            {groupName && <div className="data-sheet-group-heading">{groupName}</div>}
+            {groupFields.map((f) => (
+              <label className="data-sheet-field" key={f.id}>
+                <span>
+                  {f.label}
+                  {f.unit ? ` (${f.unit})` : ''}
+                </span>
+                {f.options ? (
+                  <select
+                    value={properties[f.id] ?? ''}
+                    onChange={(e) => setProperty(f.id, e.target.value)}
+                    data-testid={`data-sheet-field-${f.id}`}
+                  >
+                    <option value="" />
+                    {f.options.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={properties[f.id] ?? ''}
+                    onChange={(e) => setProperty(f.id, e.target.value)}
+                    data-testid={`data-sheet-field-${f.id}`}
+                  />
+                )}
+              </label>
+            ))}
+          </div>
         ))}
 
         {isOffpageConnector(data) && (
