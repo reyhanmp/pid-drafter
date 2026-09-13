@@ -2,7 +2,7 @@
 
 **Status:** Draft for review (revised with industry-research pass)
 **Author:** Hermes (for Reyhan Prajesa)
-**Date:** 2026-09-08, revised 2026-09-12
+**Date:** 2026-09-08, revised 2026-09-12, 2026-09-13
 **Supersedes:** v1 MVP at `~/projects/pid-drafter/` (to be archived, not iterated on)
 
 ---
@@ -39,6 +39,23 @@ covered only 6 of 11 categories, tags and line numbers were free text
 with no ISA-5.1 / piping-class semantics, and nozzles carried no size or
 rating. All three are now requirements with acceptance gates rather than
 aspirations.
+
+**4. §4.3 configurable numbering SHIPPED, and five claims in this
+document measured against the source rather than assumed.** The numbering
+settings panel was the one explicitly-requested item from the original
+brief that had never been built; it is now built (`3e17b91`) for both tag
+shapes and the drawing's own line format. The review that produced it
+also found the document asserting five things that were not true of the
+code — an export path that does not exist, a nozzle-spec link that is not
+wired, an equipment-list surface that does not carry nozzle size, a line
+weight hierarchy declared as a spec while every pipe is drawn at one
+weight, and hosting listed as outstanding when the service is live. Each
+is corrected in place and kept visible rather than quietly deleted,
+because a requirements document that overstates the build is worse than
+one that admits a gap: it hides work. §4.9.3 and §4.5 in particular now
+record *measured* status, and the two remaining unbuilt areas — the paper
+template/PDF export (§4.4) and the live nozzle-vs-line reconciliation —
+are stated as unbuilt rather than implied done.
 
 ---
 
@@ -276,12 +293,35 @@ enterprise-PLM territory):**
   the pipe's terminal segment snaps to align with that normal before
   touching the symbol boundary (no connecting at an angle that doesn't
   match how pipe would physically run out of that nozzle).
-- **Configurable line/tag numbering (explicitly requested).** A
-  settings panel where Reyhan can define/adjust the numbering scheme
-  for line numbers and tags — e.g. prefix conventions, auto-increment
-  behavior, numbering start value — rather than every tag/line number
-  being purely free-text with no system behind it. Exact scheme is
+- **Configurable line/tag numbering (explicitly requested). — SHIPPED 2026-09-13
+  (`3e17b91`).** A settings panel (top bar → *Numbering*) where the numbering
+  scheme for line numbers and tags is defined once for the project: tag shape,
+  area/unit, sequence start, zero-pad width, suffix, step, and a per-type
+  starting number; plus the line-number format fields. Exact scheme is
   configurable, not hardcoded to one house style.
+  - **Two tag shapes, because both are real house standards.** `plain`
+    (`V-101`, `P-102`) and `area` (`P-710.01A`, `D-710.2.01A`). The area form
+    is not invented — the reference drawing in §6 tags its equipment
+    `P-710.01A/B` and `D-710.2.01A`, carrying the *same area* as its line
+    numbers. A feature that could only emit `V-101` could not reproduce the
+    drawing it was measured against. Two-level sequences (`2.01`) are handled
+    because that drawing uses them.
+  - **The line sequence runs per AREA, across services.** On the reference
+    sheet `710.01` carries DIC2, `710.20` carries JAC, and LPS2 also uses
+    `710.01A`. A per-service model would emit duplicate numbers on a real
+    drawing, so per-area is the implemented rule.
+  - **Bulk numbering fills blanks only, in reading order.** Renumbering a line
+    that already carries a number is destructive and is not done on the user's
+    behalf. Unnumbered runs are numbered top-of-sheet first.
+  - **Backward compatible by construction.** A project saved before this
+    feature has no `numbering` block; it loads unchanged and still tags its
+    first vessel `V-101`. Deliberately NO version bump — the envelope check is
+    strict (`!== PROJECT_VERSION` rejects), so bumping it would reject every
+    saved file.
+  - **Auto-numbering never proposes an existing tag.** Tag uniqueness is a
+    hard error (§4.1), so a collision would make the tool generate the very
+    error it refuses to export. The check keys off how the candidate was
+    derived, not merely the output.
 - Editable tags, line numbers, and piping specs (material, piping
   class, nominal diameter, design pressure, fluid code) — this existed
   in v1, keep it, but only meaningful once wired to the validity engine
@@ -320,17 +360,30 @@ diagram tool that happens to have process symbols bolted on. Concretely:
   instead of an app screenshot with a logo slapped on.
 - **JSON save/load (core, carry forward from v1):** full diagram
   serialization for continuing work later.
-- **SVG export (keep, cheap to retain):** already works, low cost to
-  carry forward as a secondary export option.
+- **SVG export — CORRECTED 2026-09-13: this does NOT exist.** Earlier
+  revisions of this PRD claimed it "already works, cheap to retain". A full
+  search of `src/` for any export path (`download`, `createObjectURL`,
+  `toBlob`, `XMLSerializer`, `svg` serialisation) returns nothing. There is no
+  export of any kind in the build, and there never was in this codebase. It is
+  therefore NOT a cheap carry-forward — it is unbuilt work, like PDF. The claim
+  was inherited from v1 and never checked against v2's source. Recorded here
+  rather than silently deleted, because the same wrong assumption ("export is
+  basically done") is what would let §4.4 keep slipping.
 - **DEXPI/Proteus XML export (stretch, low priority):** v1's clean-room
   implementation (nozzle-level connectivity, real RDL URI mapping,
   line-spec attributes) was reasonably solid — if/when this gets
   revisited, port that logic rather than re-deriving from scratch, but
   do not schedule it before 4.1–4.4 (PDF) are done and solid.
 
-### 4.5 Hosting
+### 4.5 Hosting — DONE (verified 2026-09-13)
 - Self-hosted on apollopi (Raspberry Pi), same pattern as v1: build →
-  static file server → systemd unit → reachable over Tailscale only
+  static file server → systemd unit → reachable over Tailscale only.
+  **Status: this is already in place, not pending.** `pid-drafter.service` is
+  `active` **and** `enabled` (boot-persistent), serving
+  `~/projects/pid-drafter/dist/` on `0.0.0.0:5173`, HTTP 200. Earlier PRD
+  wording listed it as outstanding alongside the genuinely-unbuilt §4.4.
+  Caveat worth stating: the unit serves `dist/`, so **any `npm run build`
+  swaps the live site** — a build is a deploy.
   (not public internet).
 - Repo stays clean/scalable: standard Vite+React+TS project layout,
   no stray reference/debug artifacts committed (v1's gitignored DEXPI
@@ -433,14 +486,30 @@ acceptance gate, not an aspiration.
   already-drawn lines are not orphaned.
 - Gate: `scripts/verify-tags.cjs`.
 
-**4.9.3 Nozzles carry size and rating.**
+**4.9.3 Nozzles carry size and rating. — SHIPPED 2026-09-13 (`34797ea`)**
 - Every port may declare a nominal size and an ANSI/ASME class, shown in
-  the data sheet's nozzle editor and surfaced in the equipment list. The
-  real drawing sizes every nozzle (`ø1 1/2" ANSI 150#`); bare geometry is
-  not a nozzle schedule.
-- Nozzle size feeds the existing spec check (§4.1) rather than adding a
-  parallel rule set.
-- Gate: `scripts/verify-nozzles.cjs`.
+  the data sheet's nozzle editor. The real drawing sizes every nozzle
+  (`ø1 1/2" ANSI 150#`); bare geometry is not a nozzle schedule.
+- Nozzle sizes are deliberately **not defaulted** in the 67 symbol
+  definitions. A vessel has no inherent nozzle size — it is a project
+  decision. Field, suggestions and schedule are provided; the numbers come
+  from the engineer. Defaulting them would put fabricated values into a real
+  engineering document.
+- Unconnected nozzles read **`SPARE — no connection`**, not a blank cell: the
+  panel's `—` is the generic empty-cell placeholder, so blank was ambiguous
+  with "not filled in yet".
+- Size is per **nozzle**, not per line — a reducer means a 4" line can leave
+  a 3" nozzle. Verified.
+- **CORRECTED 2026-09-13:** an earlier revision of this PRD claimed nozzle
+  size "feeds the existing spec check (§4.1)" and is "surfaced in the
+  equipment list". Neither is true:
+  - `specValidation.ts` never reads `ports` — it validates the pipe **line**
+    spec (size / class / material) only. There is no nozzle-vs-line
+    reconciliation. That is real engineering value and remains **unbuilt**
+    (see the "Live engineering" backlog item); it is not a wording tweak.
+  - The size is surfaced in the **nozzle schedule** — a 6th engineering list
+    added with this work — not in the equipment list.
+- Gate: `scripts/verify-nozzles.cjs` (NOZZLES_PASS 9/9).
 
 **Standing requirement for all three:** the acceptance gates live in
 `scripts/` and are run before commit, same discipline as the symbol
@@ -525,6 +594,20 @@ exactly, supersedes earlier assumptions where they differ):**
 - **Instrument bubbles:** perfect circles, thin uniform line weight,
   2-letter stacked tag inside (e.g. TT, LT, PI, LSH), loop number
   below/beside the circle (not inside it) in small text, no box
+  - **MEASURED MISMATCH 2026-09-13 (`src/symbols/isaBubble.tsx`).** The
+    implementation draws a **divided** bubble: function code above a horizontal
+    divider, loop number below it, **both inside the circle** (`showLoop` puts
+    the loop number at `cy + fontSize`, inside the radius). The reference
+    drawing has no divider and the loop number sits **outside** the circle.
+    Both styles are legitimate ISA-5.1 in general, but §6 says match *this*
+    drawing rather than a generic default, and the divided form is the generic
+    one. Not changed in the numbering work — logged as an open discrepancy so
+    the next symbol pass can align it with the reference, or the PRD can state
+    that the divided form is a deliberate deviation.
+  - Note this bubble is nonetheless a **net fix** over what preceded it: the 9
+    instrument symbols used to hardcode their own letters (`FIC`, `PI`, `XY`)
+    regardless of the node's tag, so a controller tagged `LIC-710.3` drew
+    `FIC` — two tags for one instrument. The bubble now reads its own tag.
 - **Signal-type tags (AI/AO/DI/DO etc.):** small square/rectangle boxes
   — visually and semantically distinct from round instrument bubbles
   (square = signal/system reference, circle = field instrument — this
@@ -535,12 +618,27 @@ exactly, supersedes earlier assumptions where they differ):**
   connected via dashed signal line up to the controlling instrument
   bubble; check valves get an internal solid arrow; PSVs use a bent/
   elbow bowtie feeding a vertical vent line
-- **Line weight hierarchy (adopt as a real spec, not guesswork):**
+- **Line weight hierarchy — PARTIALLY BUILT. Status measured 2026-09-13:**
   1. Heaviest — vessel outlines, main process pipe run
   2. Medium — branch/secondary process piping
   3. Thin — instrument leader/capillary lines
   4. Thin dashed — pneumatic/electric signal lines
   5. Thin dash-dot or fine dashed — battery-limit/scope boundary lines
+
+  Tiers 1 (**vessel outlines only**), 3 and 4 are implemented. **Tiers 2 and 5
+  are not, and tier 1's "main process pipe run" half is not either:**
+  - **Every process pipe is drawn at the same weight.** `PipeEdge.tsx` sets
+    `strokeWidth: 2` unconditionally — there is no main-run vs branch
+    distinction, so tier 2 has nothing to differ from and tier 1's pipe half
+    is unrepresented. On a dense sheet every run currently looks identical.
+  - **Battery-limit lines cannot be drawn at all.** `PipeEdgeData.lineType` is
+    a two-value union, `'process' | 'signal'`; there is no dash-dot type and
+    no scope-boundary concept, so tier 5 is unimplementable as the model
+    stands rather than merely unbuilt.
+  Recorded as measured because the PRD's "adopt as a real spec" wording reads
+  as though the hierarchy is in place, and the reference drawing's own sheet
+  uses battery-limit lines prominently — a rebuild that omits them does not
+  look like the drawing it is meant to match.
 - **Line number format:** `{size}"-{service-code}-{line-number}-{spec}-
   {insulation-suffix}`, e.g. `1½"-LPS2-710.01A-300-HC` — this is a real,
   usable numbering scheme to seed the configurable numbering feature
@@ -561,6 +659,49 @@ of truth over any generic P&ID software reference material.
    multi-sheet — worth building?~~ — **Resolved** (2026-09-12, industry
    research + user confirmation): yes to all four except revision
    tracking, which stays out of scope. See Goals (§2) and §4.6–4.8.
+
+### 7a. Open items found by measuring the build against this document (2026-09-13)
+
+Ordered by how much they cost on a real drawing, not by how hard they are.
+All are **unbuilt**, verified against source, not inferred from absence.
+
+1. **Nothing limits how many pipes attach to one nozzle.** Two runs can be
+   drawn onto the same port and the validity engine reports nothing, even
+   though §4.1's whole premise is "structurally correct, not just visually
+   plausible". A model that permits physically impossible connectivity is
+   not structurally correct, so this is a soundness hole in the load-bearing
+   feature rather than a missing nicety. Cheapest of these to fix.
+2. **No tee / junction fitting in the 67-symbol library.** A header with
+   branches — the most ordinary arrangement in process piping — cannot be
+   drawn the normal way. Either the library gains a junction symbol or a port
+   is explicitly allowed to fan out; the current state can do neither.
+3. **Battery-limit / scope-boundary lines do not exist** (§6 tier 5). The
+   reference drawing uses them; `lineType` has no slot for them. See §6.
+4. **No line-hop at crossings.** Real P&IDs break one line over another where
+   they cross without connecting; every crossing in this tool looks like an
+   unmarked intersection. With more than a few runs on a sheet this becomes
+   genuinely ambiguous — a reader cannot tell a crossing from a connection.
+5. **Paper template + export (§4.4) — nothing exists.** No border, title
+   block, revision block or legend box; no PDF, and (corrected above) no SVG
+   either. This is the difference between a tool Reyhan uses and a tool whose
+   output a colleague can be handed, so it is the highest-value remaining
+   item even though it comes after the correctness items.
+6. **Nozzle-vs-line reconciliation** (§4.9.3 correction). A 4" line leaving a
+   3" nozzle is legal and silent. This is the strongest "live engineering"
+   material available — it turns the validity engine into something that
+   knows *process* rules, not just graph rules — and it should be built on
+   top of a sound connectivity model, not before it.
+7. **Undo/redo.** Currently §8's explicit deferral, and the decision to defer
+   was made when this was a 30-symbol tool. Worth revisiting: at 67 symbols,
+   multi-sheet, lists and a numbering panel, a mis-drag that silently
+   renumbers or deletes is expensive to recover from by hand. Flagging it as
+   a decision to re-take, not as an oversight.
+8. **Line weight hierarchy partially implemented** (§6). Main-run vs branch
+   piping distinction and battery-limit weight are absent; every process run
+   draws at one weight.
+9. **Bubble convention differs from the reference** (§6) — divided bubble with
+   the loop number inside, versus the reference's undivided bubble with the
+   loop number outside. Either align it or record it as a deliberate choice.
 
 ---
 
