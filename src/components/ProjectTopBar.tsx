@@ -17,12 +17,14 @@ export default function ProjectTopBar({
   onProjectNameChange,
   autosaveStatus,
   onLoad,
+  onOpenLists,
 }: {
   project: Project;
   projectName: string;
   onProjectNameChange: (name: string) => void;
   autosaveStatus: 'idle' | 'saving' | 'saved' | 'unavailable';
   onLoad: (project: Project) => void;
+  onOpenLists: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadErrors, setLoadErrors] = useState<string[]>([]);
@@ -94,6 +96,13 @@ export default function ProjectTopBar({
         />
       </label>
 
+      <button
+        onClick={onOpenLists}
+        data-testid="open-lists-btn"
+        title="Auto-generated line / valve / instrument / equipment lists, derived from the drawing"
+      >
+        Lists
+      </button>
       <button onClick={handleSave} data-testid="save-json-btn" title="Download the whole project as JSON">
         Save JSON
       </button>

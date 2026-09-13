@@ -15,6 +15,7 @@ import EquipmentNode from './components/EquipmentNode';
 import PipeEdge from './edges/PipeEdge';
 import PipeConnectionLine from './edges/PipeConnectionLine';
 import FreeLineLayer from './components/FreeLineLayer';
+import EngineeringListsPanel from './components/EngineeringListsPanel';
 import SymbolPalette from './components/SymbolPalette';
 import ValidationPanel from './components/ValidationPanel';
 import DataSheetPanel from './components/DataSheetPanel';
@@ -91,6 +92,8 @@ function DrawingCanvas() {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   /** Selected free line (overlay-rendered; not a react-flow edge selection). */
   const [selectedFreeLineId, setSelectedFreeLineId] = useState<string | null>(null);
+  /** PRD §4.6 engineering-lists view — derived on render from `sheets`. */
+  const [showLists, setShowLists] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -364,7 +367,15 @@ function DrawingCanvas() {
           onProjectNameChange={setProjectName}
           autosaveStatus={autosaveStatus}
           onLoad={handleLoad}
+          onOpenLists={() => setShowLists(true)}
         />
+        {showLists && (
+          <EngineeringListsPanel
+            sheets={sheets}
+            projectName={projectName}
+            onClose={() => setShowLists(false)}
+          />
+        )}
         {autosaveNotice && (
           <div className="autosave-notice" data-testid="autosave-notice" role="status">
             {autosaveNotice}
