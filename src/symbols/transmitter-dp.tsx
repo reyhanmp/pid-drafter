@@ -1,21 +1,21 @@
-import type { SymbolDefinition } from './types';
-import { LINE_WEIGHT, STROKE, FILL_NONE } from './style';
+import type { SymbolDefinition, SymbolGeometryProps } from './types';
+import { IsaBubbleGlyph } from './isaBubble';
 
 /** Differential-Pressure Transmitter (PDT) — ISA-5.1 instrument bubble, field-mounted (plain circle). */
-function TransmitterDpGeometry({ width, height }: { width: number; height: number }) {
-  const r = Math.min(width, height) / 2 - LINE_WEIGHT.thin;
-  const cx = width / 2;
-  const cy = height / 2;
+function TransmitterDpGeometry({ width, height, label }: SymbolGeometryProps) {
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-      <circle cx={cx} cy={cy} r={r} fill={FILL_NONE} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
-      <text x={cx} y={cy + 4} fontSize={11} textAnchor="middle" fontFamily="monospace" fill={STROKE}>
-        PDT
-      </text>
+      <IsaBubbleGlyph
+        width={width}
+        height={height}
+        tag={label}
+        fallbackCode="PDT"
+        sharedDisplay={false}
+        square={false}
+      />
     </svg>
   );
 }
-
 const transmitterDp: SymbolDefinition = {
   kind: 'transmitter-dp',
   label: 'Differential-Pressure Transmitter (PDT)',

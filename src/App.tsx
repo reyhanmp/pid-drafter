@@ -26,6 +26,7 @@ import { useProject } from './project/useProject';
 import { symbolsByKind } from './symbols';
 import { validateDiagram, validateProject, type DiagramNode, type DiagramEdge } from './validation/validateDiagram';
 import { validateSpecCompatibility } from './validation/specValidation';
+import { validateTagSemantics } from './validation/tagSemantics';
 import { getProjectLoopMates } from './validation/instrumentLoops';
 import { offpageDisplayLabel, isOffpageConnector } from './validation/offpageReferences';
 import type { EquipmentNodeData, PipeEdgeData } from './types/diagram';
@@ -276,6 +277,13 @@ function DrawingCanvas() {
     [edges],
   );
   const specWarnings = useMemo(() => validateSpecCompatibility(diagramNodes, diagramEdges), [diagramNodes, diagramEdges]);
+  /** PRD §4.9.2 — soft tag/line semantics warnings (ISA-5.1 reading, prefix match, line-number grammar). */
+  const tagWarnings = useMemo(() => validateTagSemantics(diagramNodes, diagramEdges), [diagramNodes, diagramEdges]);
+  /** Every line number in the project, so the line editor suggests this drawing's own house codes first. */
+  const allLineNumbers = useMemo(
+    () => sheets.flatMap((s) => s.edges.map((e) => (e.data as unknown as PipeEdgeData | undefined)?.lineNumber ?? '')).filter(Boolean),
+    [sheets],
+  );
 
   // Per-sheet structural errors stay available (used nowhere in the panel
   // now that validateProject supersedes it, but kept wired so a future
@@ -401,6 +409,7 @@ function DrawingCanvas() {
                 <LineDataSheetPanel
                   edgeId={selectedEdge.id}
                   data={selectedEdge.data as unknown as PipeEdgeData}
+                  existingLineNumbers={allLineNumbers}
                   onUpdateData={updateEdgeData}
                   onClose={() => setSelectedEdgeId(null)}
                 />
@@ -475,7 +484,7 @@ function DrawingCanvas() {
             />
           </div>
           <div className="right-rail">
-            <ValidationPanel errors={projectValidation.errors} specWarnings={specWarnings} />
+            <ValidationPanel errors={projectValidation.errors} specWarnings={specWarnings} tagWarnings={tagWarnings} />
             <SymbolPalette />
           </div>
         </div>

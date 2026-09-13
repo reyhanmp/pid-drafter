@@ -199,7 +199,12 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
         }}
         data-testid="equipment-geometry-wrapper"
       >
-        <Geometry width={width} height={height} selected={selected} label={d.__resolvedLabel} />
+        {/* `label` carries the resolved display text. Off-page connectors
+            compute a resolved target ("TO SH.2 TT-101"); every other symbol
+            falls back to its own tag, which is what the ISA-5.1 bubble needs
+            to draw the right function code and loop number instead of the
+            symbol's own default letters. */}
+        <Geometry width={width} height={height} selected={selected} label={d.__resolvedLabel ?? d.tag} />
       </div>
       {ports.map((port) => {
         const pos = directionToPosition(port.direction);

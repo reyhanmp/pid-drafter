@@ -6,6 +6,7 @@
 import { symbolsByKind } from '../symbols/index';
 import { getRenderedPorts } from '../symbols/effectivePorts';
 import { isOffpageConnector, resolveOffpageRef, type SheetRef } from './offpageReferences';
+import { readIsaTag } from './isaTags';
 import type { EquipmentNodeData, PipeEdgeData } from '../types/diagram';
 
 export interface DiagramNode {
@@ -25,7 +26,8 @@ export interface DiagramEdge {
 export type ValidationErrorKind =
   | 'duplicate-tag'
   | 'unconnected-pipe'
-  | 'offpage-broken-reference';
+  | 'offpage-broken-reference'
+  | 'malformed-instrument-tag';
 
 export interface ValidationError {
   kind: ValidationErrorKind;
@@ -131,10 +133,49 @@ function checkPortConnections(nodes: DiagramNode[], edges: DiagramEdge[]): Valid
   return errors;
 }
 
+/**
+ * Rule 4 (PRD §4.9.2): an instrument tag must carry function letters and a
+ * loop number.
+ *
+ * This is the one tag rule that IS a hard error, and deliberately so: loop
+ * cross-referencing (§4.7), list generation (§4.6) and DEXPI export all parse
+ * the tag, and a tag with no letters or no number silently breaks all three.
+ * Everything else about tag semantics — unrecognised ISA codes, prefixes that
+ * disagree with the symbol — stays a soft warning, because house standards
+ * legitimately violate the letter of the standard and a tool that refuses
+ * those drawings is worse than useless.
+ *
+ * Untagged instruments are NOT flagged: a half-drawn diagram is normal, and
+ * the empty tag is already obvious on screen.
+ */
+function checkInstrumentTagShape(nodes: DiagramNode[]): ValidationError[] {
+  const errors: ValidationError[] = [];
+  for (const node of nodes) {
+    const symbol = symbolsByKind[node.data.kind];
+    if (!symbol) continue;
+    if (symbol.category !== 'Instruments' && symbol.category !== 'Signal & Logic') continue;
+    const tag = (node.data.tag ?? '').trim();
+    if (!tag) continue;
+    const { problem } = readIsaTag(tag);
+    if (problem) {
+      errors.push({
+        kind: 'malformed-instrument-tag',
+        message: `Instrument "${tag}" — ${problem}`,
+        nodeIds: [node.id],
+      });
+    }
+  }
+  return errors;
+}
+
 /** Run all validity rules against a diagram and return every current error. */
 export function validateDiagram(nodes: DiagramNode[], edges: DiagramEdge[]): ValidationResult {
   return {
-    errors: [...checkUniqueTags(nodes), ...checkPortConnections(nodes, edges)],
+    errors: [
+      ...checkUniqueTags(nodes),
+      ...checkPortConnections(nodes, edges),
+      ...checkInstrumentTagShape(nodes),
+    ],
   };
 }
 

@@ -1,25 +1,21 @@
-import type { SymbolDefinition } from './types';
-import { LINE_WEIGHT, STROKE, FILL_NONE } from './style';
+import type { SymbolDefinition, SymbolGeometryProps } from './types';
+import { IsaBubbleGlyph } from './isaBubble';
 
 /** Diamond relay/solenoid-pilot symbol (XY-type) — hollow diamond with 2-letter tag, signal-only. */
-function RelayDiamondGeometry({ width, height }: { width: number; height: number }) {
-  const cx = width / 2;
-  const cy = height / 2;
+function RelayDiamondGeometry({ width, height, label }: SymbolGeometryProps) {
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-      <path
-        d={`M ${cx} 0 L ${width} ${cy} L ${cx} ${height} L 0 ${cy} Z`}
-        fill={FILL_NONE}
-        stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.thin}
+      <IsaBubbleGlyph
+        width={width}
+        height={height}
+        tag={label}
+        fallbackCode="XY"
+        sharedDisplay={false}
+        square={true}
       />
-      <text x={cx} y={cy + 4} fontSize={11} textAnchor="middle" fontFamily="monospace" fill={STROKE}>
-        XY
-      </text>
     </svg>
   );
 }
-
 const relayDiamond: SymbolDefinition = {
   kind: 'relay-diamond',
   label: 'Relay / Solenoid Pilot (XY)',

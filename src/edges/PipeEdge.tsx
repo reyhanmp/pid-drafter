@@ -41,8 +41,26 @@ function PipeEdge(props: EdgeProps) {
   const midIndex = Math.floor(points.length / 2);
   const mid = points[midIndex] ?? { x: (sourceX + targetX) / 2, y: (sourceY + targetY) / 2 };
 
-  const labelBits = [d.lineNumber, d.lineName, d.lineSize].filter(Boolean);
-  const label = labelBits.join(' · ');
+  /**
+   * On a real P&ID, a piping run is labelled with its LINE NUMBER and nothing
+   * else — the number already encodes size, service, area, sequence and piping
+   * class (PRD §6), so repeating `lineSize` beside it duplicates information
+   * and `lineName` is a description that belongs on the line list, not on the
+   * drawing. The reference drawing (X-00000-000-01) labels runs exactly this
+   * way.
+   *
+   * The descriptive name and size still matter — they are shown in the line
+   * data sheet and exported in the line list — they just do not belong on the
+   * canvas, where they collide with equipment and make a dense drawing
+   * unreadable.
+   *
+   * A free line (§4.1) is the exception: it has no number by definition, so it
+   * falls back to whatever description it does carry, which is the only way to
+   * tell two free lines apart on screen.
+   */
+  const label = d.freePipe
+    ? [d.lineNumber, d.lineName, d.lineSize].filter(Boolean).join(' · ')
+    : d.lineNumber ?? '';
 
   function removeSelf(e: React.MouseEvent) {
     e.stopPropagation();

@@ -5,6 +5,7 @@ import { getEffectivePorts } from '../symbols/effectivePorts';
 import { fieldsForKind } from '../dataSheet/fieldSchemas';
 import type { EquipmentNodeData } from '../types/diagram';
 import { isOffpageConnector, type SheetRef } from '../validation/offpageReferences';
+import { readIsaTag, describeFunctionCode, suggestedFunctionCodes } from '../validation/isaTags';
 import OffpageTargetPanel from './OffpageTargetPanel';
 
 const CARDINAL_DIRECTIONS: Array<{ label: string; dir: PortDirection }> = [
@@ -109,6 +110,11 @@ export default function DataSheetPanel({
   const properties = data.properties ?? {};
   const rotation = data.rotation ?? 0;
 
+  /** Instruments and signal/logic functions are read as ISA-5.1 tags. */
+  const isIsaCategory = symbol.category === 'Instruments' || symbol.category === 'Signal & Logic';
+  const tagReading = useMemo(() => readIsaTag(data.tag ?? ''), [data.tag]);
+  const tagProblem = tagReading.problem;
+
   /** Cycles rotation 0 -> 90 -> 180 -> 270 -> 0. updateNodeData already
    * recomputes node.handles from getRenderedPorts whenever 'rotation' is
    * in the patch, so this is the only wiring needed on this side. */
@@ -158,8 +164,40 @@ export default function DataSheetPanel({
             value={data.tag ?? ''}
             onChange={(e) => onUpdateData(nodeId, { tag: e.target.value })}
             data-testid="data-sheet-tag-input"
+            list={isIsaCategory ? 'isa-function-code-suggestions' : undefined}
+            placeholder={isIsaCategory ? `${symbol.tagPrefix}-101` : `${symbol.tagPrefix}-101`}
           />
         </label>
+
+        {isIsaCategory && (
+          <datalist id="isa-function-code-suggestions">
+            {suggestedFunctionCodes().map((s) => (
+              <option key={s.code} value={`${s.code}-`}>
+                {s.meaning}
+                {s.isHouseCode ? ' (house code)' : ''}
+              </option>
+            ))}
+          </datalist>
+        )}
+
+        {/* Live ISA-5.1 reading of whatever tag is typed, so the engineer sees
+            what the tool understood rather than having to guess. */}
+        {isIsaCategory && tagReading.functionCode && (
+          <div className="tag-reading" data-testid="tag-reading">
+            <span className="tag-reading-code">{tagReading.functionCode}</span>
+            <span className="tag-reading-meaning">{describeFunctionCode(tagReading.functionCode)}</span>
+            {tagReading.loopNumber && (
+              <span className="tag-reading-loop">loop {tagReading.loopNumber}</span>
+            )}
+            {tagReading.isHouseCode && <span className="tag-reading-house">house code</span>}
+          </div>
+        )}
+
+        {tagProblem && (
+          <div className="tag-problem" data-testid="tag-problem" role="alert">
+            {tagProblem}
+          </div>
+        )}
 
         <label className="data-sheet-field">
           <span>Rotation</span>

@@ -1,21 +1,21 @@
-import type { SymbolDefinition } from './types';
-import { LINE_WEIGHT, STROKE, FILL_NONE } from './style';
+import type { SymbolDefinition, SymbolGeometryProps } from './types';
+import { IsaBubbleGlyph } from './isaBubble';
 
 /** Process Analyzer (AT) — ISA-5.1 instrument bubble, field-mounted (plain circle). */
-function AnalyzerGeometry({ width, height }: { width: number; height: number }) {
-  const r = Math.min(width, height) / 2 - LINE_WEIGHT.thin;
-  const cx = width / 2;
-  const cy = height / 2;
+function AnalyzerGeometry({ width, height, label }: SymbolGeometryProps) {
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-      <circle cx={cx} cy={cy} r={r} fill={FILL_NONE} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
-      <text x={cx} y={cy + 4} fontSize={11} textAnchor="middle" fontFamily="monospace" fill={STROKE}>
-        AT
-      </text>
+      <IsaBubbleGlyph
+        width={width}
+        height={height}
+        tag={label}
+        fallbackCode="AT"
+        sharedDisplay={false}
+        square={false}
+      />
     </svg>
   );
 }
-
 const analyzer: SymbolDefinition = {
   kind: 'analyzer',
   label: 'Process Analyzer (AT)',

@@ -991,3 +991,82 @@
   color: #7a8794;
   margin-bottom: 5px;
 }
+
+/* --- Tag and line semantics (PRD 4.9.2) ---
+   The live ISA-5.1 reading sits directly under the tag input so the engineer
+   sees what the tool understood. The problem box is styled as a warning, not
+   an error: a malformed instrument tag blocks export (it breaks loop parsing),
+   but everything else on this row is advisory. */
+.tag-reading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 8px;
+  padding: 5px 8px;
+  background: #f2f7fb;
+  border: 1px solid #d7e6f2;
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+
+.tag-reading-code {
+  font-weight: 700;
+  color: #0b4f8a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.tag-reading-meaning {
+  color: #44606f;
+}
+
+.tag-reading-loop {
+  margin-left: auto;
+  color: #7a8794;
+  font-size: 11px;
+}
+
+.tag-reading-house {
+  background: #fdf3d8;
+  border: 1px solid #e8d7a4;
+  color: #7a6224;
+  border-radius: 8px;
+  padding: 0 6px;
+  font-size: 10.5px;
+}
+
+.tag-problem {
+  margin: -2px 0 8px;
+  padding: 6px 9px;
+  background: #fdf0e6;
+  border: 1px solid #eccfae;
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: #7a4a1c;
+}
+
+/* Structured line-number fields: two columns, compact, so the whole
+   {size}-{service}-{area}.{seq}-{class}-{insulation} block fits without
+   scrolling in the 320px rail. */
+.line-number-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.line-number-grid .data-sheet-field {
+  margin-bottom: 0;
+}
+
+.line-number-grid .data-sheet-field input {
+  font-size: 11.5px;
+}
+
+.validation-badge.warn {
+  background: #fdf3d8;
+  color: #7a6224;
+}
+
+.validation-item-warn {
+  color: #6a5426;
+}
