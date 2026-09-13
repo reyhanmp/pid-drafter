@@ -7,7 +7,37 @@
 
 ---
 
-## 0. Revision note (2026-09-13, later pass)
+## 0. Revision note (2026-09-13, for public release)
+
+**Client identifiers redacted.** This document and the source tree were
+prepared for publication, and §6's reference drawing is a real issued client
+document. Every identifier that could serve as a search key back to that
+document has been replaced with a placeholder:
+
+The drawing number, the client name, and the real area codes have been
+replaced with placeholders. The specific originals are deliberately not
+reproduced anywhere in this document — including here, in the note that
+describes the redaction, since restating them would put back exactly the
+searchable strings the redaction removes.
+
+The *structure* is untouched, because the structure is what this tool
+encodes: the dotted area form and the 4-digit undotted form are still both
+present and still distinct, a neighbouring area still does NOT advance the
+area under test, and every gate still asserts the same distinctions it did
+before. The redaction is a
+find-and-replace over test data, not a change in behaviour — which is
+itself the point. The drawing's own conventions (line-number grammar, the
+area.seq tag form, ISA-5.1 bubble layout, `ø1 1/2" ANSI 150#` nozzles)
+are industry practice and remain fully documented; a placeholder for the
+document that happened to be the reference costs the reader nothing.
+
+**Known limitation:** this redaction applies to the current tree and all
+future commits. It does NOT rewrite history — the earlier commits' diffs
+still contain the original identifiers, as does the previously-pushed
+`origin/main`. Removing them there requires a history rewrite and a
+force-push over published commits.
+
+## 0a. Revision note (2026-09-13, three commits)
 
 Landed after the first 2026-09-13 pass, in three commits:
 

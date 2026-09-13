@@ -262,7 +262,7 @@ export function parseLineNumber(lineNumber: string): LineNumberReading {
  *
  * Round-trips BOTH area forms, because `formatLineNumber(parseLineNumber(x))`
  * must equal `x` for anything the parser accepted — a parser that rewrites
- * `7210B` into `1201.B` has corrupted the number:
+ * `7210B` into `7210.B` has corrupted the number:
  *
  *   area='710', seq='01', suffix='A'  ->  `710.01A`   (dotted)
  *   area='7210', seq='',    suffix='B'  ->  `7210B`   (undotted)
