@@ -32,6 +32,14 @@ reproducible check that every new symbol is expected to satisfy before
 commit. The gate measures distance to *drawn ink*, not to the bounding
 box — a distinction that has already caught two real defects.
 
+**3. A new §4.9 records the chemical-engineering depth pass.** Measured
+against the real issued drawing in §6, three areas were thinner than the
+tool's own product identity claim (§4.3.1) allows: data-sheet fields
+covered only 6 of 11 categories, tags and line numbers were free text
+with no ISA-5.1 / piping-class semantics, and nozzles carried no size or
+rating. All three are now requirements with acceptance gates rather than
+aspirations.
+
 ---
 
 ## 0a. Revision note (2026-09-12)
@@ -372,6 +380,72 @@ diagram tool that happens to have process symbols bolted on. Concretely:
   teeth.
 - Sheet management (add/rename/reorder/delete sheets) lives in a
   simple sheet-tabs UI, similar in spirit to spreadsheet tabs.
+
+### 4.9 Chemical-engineering depth (NEW — 2026-09-13)
+
+The product identity claim in §4.3.1 ("this is a P&ID tool, not a
+diagramming tool") is only as strong as how much process engineering the
+tool actually knows. Measured against the real issued drawing in §6,
+three areas did not clear that bar. Each is a requirement with an
+acceptance gate, not an aspiration.
+
+**4.9.1 Data sheets cost the real engineering, per symbol type.**
+- Every symbol category has a real field set; no category may fall
+  through to a lone "Service / Description". Coverage was 6 of 11
+  categories; Columns and Reactors — the two most important equipment
+  types in the table — were among the missing.
+- A **kind-level override sits above the category layer**, because a
+  category's members often share nothing but a filing label. Piping
+  Accessories is the clear case: a strainer, a restriction orifice, a
+  steam trap and a spectacle blind want four different sheets. Heat
+  Exchangers likewise — an air cooler needs fan data, a fired heater
+  needs firing rate and efficiency, a kettle reboiler needs boil-up.
+- Reactors capture conversion, selectivity, residence time, space
+  velocity, heat of reaction, phase, catalyst type/loading/life, jacket
+  medium and duty, mixing power per volume. Columns capture internals,
+  inside diameter, tangent-to-tangent height, theoretical stages, actual
+  trays, tray spacing, packed height, reflux ratio, feed stage, reboiler
+  and condenser duty. Full field inventory in
+  `src/dataSheet/fieldSchemas.ts`.
+- Fields carry a **group** (Process / Reaction / Design / Performance /
+  Mechanical / Instrumentation) and render sectioned, so a 28-field
+  reactor sheet reads as a data sheet rather than one undifferentiated
+  column of inputs.
+- **Field ids are a compatibility surface.** A saved project stores
+  values keyed by field id, so renaming or removing one silently blanks
+  that column of every existing drawing. Adding is free; renaming is a
+  migration. Gate: `scripts/verify-datasheets.cjs` check (g) diffs id
+  literals against the previous commit's source, **not** through the DOM
+  — the DOM only shows ids reachable from whatever the fixture mounts,
+  so a dropped id on an unmounted category would pass unnoticed.
+
+**4.9.2 Tags and line numbers carry real semantics, not free text.**
+- Instrument tags validate against **ISA-5.1** function codes with
+  autocomplete; an unrecognised code is a warning, not a hard block
+  (house standards legitimately add codes).
+- Equipment tags validate prefix against symbol type — a `V-` on a pump
+  or an instrument tagged `QQ-101` is a warning.
+- Line numbers follow the **§6 format** —
+  `{size}"-{service-code}-{area}.{seq}{suffix}-{class}-{insulation}`
+  (e.g. `1½"-LPS2-710.01A-300-HC`) — parsed into structured parts rather
+  than stored as one opaque string. Service code and piping class are
+  constrained fields; the parser back-fills from existing free text so
+  already-drawn lines are not orphaned.
+- Gate: `scripts/verify-tags.cjs`.
+
+**4.9.3 Nozzles carry size and rating.**
+- Every port may declare a nominal size and an ANSI/ASME class, shown in
+  the data sheet's nozzle editor and surfaced in the equipment list. The
+  real drawing sizes every nozzle (`ø1 1/2" ANSI 150#`); bare geometry is
+  not a nozzle schedule.
+- Nozzle size feeds the existing spec check (§4.1) rather than adding a
+  parallel rule set.
+- Gate: `scripts/verify-nozzles.cjs`.
+
+**Standing requirement for all three:** the acceptance gates live in
+`scripts/` and are run before commit, same discipline as the symbol
+port-conformance gate (§4.2). A feature whose gate does not exist is not
+done.
 
 ---
 
