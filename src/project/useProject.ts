@@ -102,7 +102,13 @@ export interface ProjectStore {
 
   replaceProject: (project: Project) => void;
   /** Drop a new equipment/instrument instance of `kind` at a canvas position. */
-  addNodeFromSymbol: (kind: string, position: { x: number; y: number }) => void;
+  /**
+   * Drop a new instance at a flow position. `opts.tag` sets an explicit tag for
+   * callers that already know one (the branch-fitting remediation, where a tee
+   * must be tagged as a fitting); omit it and `nextTagFor` derives a tag from
+   * the symbol's own prefix.
+   */
+  addNodeFromSymbol: (kind: string, position: { x: number; y: number }, opts?: { tag?: string }) => void;
 
   // ── Configurable numbering (PRD §4.3) ──
   /** The project's numbering config, always fully populated (never undefined). */
@@ -540,7 +546,18 @@ export function useProject(): ProjectStore {
 
   /** Drop a new equipment/instrument instance at a flow position. */
   const addNodeFromSymbol = useCallback(
-    (kind: string, position: { x: number; y: number }) => {
+    (
+      kind: string,
+      position: { x: number; y: number },
+      /**
+       * Explicit tag, when the caller already knows one. Used by the
+       * over-occupied-nozzle remediation, where the tee dropped to fix the
+       * connection must be tagged as the house code for a fitting. Omitted for
+       * an ordinary palette drop, which lets `nextTagFor` derive it from the
+       * symbol's own prefix.
+       */
+      opts?: { tag?: string },
+    ) => {
       const symbol = symbolsByKind[kind];
       if (!symbol) return;
       mutate((prev) => ({
@@ -558,7 +575,7 @@ export function useProject(): ProjectStore {
             handles: toReactFlowHandles(symbol.ports),
             data: {
               kind: symbol.kind,
-              tag: nextTagFor(symbol.tagPrefix, prev.sheets, normalizeNumbering(prev.numbering).tags),
+              tag: opts?.tag ?? nextTagFor(symbol.tagPrefix, prev.sheets, normalizeNumbering(prev.numbering).tags),
               width: symbol.defaultWidth,
               height: symbol.defaultHeight,
               // Stable callback reference stashed on node.data so

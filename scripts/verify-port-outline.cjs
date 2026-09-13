@@ -28,14 +28,36 @@ function registryKinds() {
   return idents.map((i) => kindOf[i]);
 }
 
-/** Read defaultWidth/Height per symbol so the seed nodes are correctly sized. */
+/**
+ * Read defaultWidth/Height per symbol so the seed nodes are correctly sized.
+ *
+ * THROWS when a size cannot be read as a literal. It must not fall back to a
+ * guessed 80x80: the probe converts every screen measurement back to node-local
+ * units using these numbers, so a wrong size turns a correctly drawn symbol into
+ * a reported geometry defect. That is a LYING gate, which is worse than a
+ * missing one — it sends the author to fix geometry that is already right. A
+ * computed `defaultWidth: SIZE` is the way this happens in practice; the fix is
+ * to write the literals.
+ */
 function defaultsFor(kinds) {
   const out = {};
+  const unreadable = [];
   for (const kind of kinds) {
     const s = fs.readFileSync(path.join(REPO, 'src/symbols', `${kind}.tsx`), 'utf8');
     const w = s.match(/defaultWidth:\s*(\d+)/);
     const h = s.match(/defaultHeight:\s*(\d+)/);
-    out[kind] = { w: w ? +w[1] : 80, h: h ? +h[1] : 80 };
+    if (!w || !h) {
+      unreadable.push(kind);
+      continue;
+    }
+    out[kind] = { w: +w[1], h: +h[1] };
+  }
+  if (unreadable.length) {
+    throw new Error(
+      `cannot read defaultWidth/Height from: ${unreadable.join(', ')}. ` +
+        'The probe needs those numbers to measure ports in node-local units; ' +
+        'a guessed size reports a false port geometry failure. Write them as literals.',
+    );
   }
   return out;
 }

@@ -66,11 +66,55 @@ const CLEAN = {
         eq('n-hs', 'relay-diamond', 'HS-710.11A', 860, 300),
         eq('n-ft', 'transmitter-flow', 'FT-710.02', 60, 500),
         eq('n-lt', 'transmitter-level', 'LT-710.03', 260, 500),
+        // Two branch fittings, so this fixture is a real header arrangement
+        // rather than a set of lines piled onto one nozzle.
+        eq('n-t1', 'tee-branch', 'TEE-101', 1000, 80),
+        eq('n-t2', 'tee-branch', 'TEE-102', 1200, 80),
       ],
-      edges: REAL_LINE_NUMBERS.map((ln, i) => ({
-        id: `e-${i}`, source: 'n-v', target: 'n-p', sourceHandle: 'right', targetHandle: 'suction', type: 'pipe',
-        data: { lineType: 'process', lineNumber: ln, lineSize: '', lineName: '', sourceDirection: { x: 1, y: 0 }, targetDirection: { x: -1, y: 0 } },
-      })),
+      /*
+       * The 7 real line numbers were previously all attached to ONE vessel
+       * nozzle (`n-v`.right) and ONE pump nozzle (`n-p`.suction) — seven pipes
+       * on a single flange. That was never a legal drawing; it simply went
+       * unreported until the validity engine grew the one-pipe-per-nozzle rule
+       * (PRD §7a item 1), at which point this "clean" fixture started failing
+       * its own no-false-positives check.
+       *
+       * The fix is to the FIXTURE, not to the rule: each line now runs between
+       * its own nozzle pair, with two tees providing a header whose run ports
+       * legitimately carry more than one line. The point of this fixture — that
+       * correct tags and correct line numbers produce no warnings — is
+       * unchanged, and the fixture is now a drawing someone could actually
+       * issue.
+       */
+      edges: [
+        ...REAL_LINE_NUMBERS.slice(0, 3).map((ln, i) => ({
+          id: `e-${i}`,
+          source: ['n-v', 'n-t1', 'n-v'][i],
+          sourceHandle: ['right', 'run-out', 'left'][i],
+          target: ['n-t1', 'n-p', 'n-t2'][i],
+          targetHandle: ['run-in', 'suction', 'run-in'][i],
+          type: 'pipe',
+          data: { lineType: 'process', lineNumber: ln, lineSize: '', lineName: '', sourceDirection: { x: 1, y: 0 }, targetDirection: { x: -1, y: 0 } },
+        })),
+        ...REAL_LINE_NUMBERS.slice(3, 5).map((ln, i) => ({
+          id: `e-${3 + i}`,
+          source: ['n-v', 'n-v'][i],
+          sourceHandle: ['top', 'bottom'][i],
+          target: ['n-t1', 'n-t2'][i],
+          targetHandle: ['run-in', 'run-in'][i],
+          type: 'pipe',
+          data: { lineType: 'process', lineNumber: ln, lineSize: '', lineName: '', sourceDirection: { x: 1, y: 0 }, targetDirection: { x: -1, y: 0 } },
+        })),
+        ...REAL_LINE_NUMBERS.slice(5).map((ln, i) => ({
+          id: `e-${5 + i}`,
+          source: ['n-t1', 'n-t2'][i],
+          sourceHandle: ['run-out', 'run-out'][i],
+          target: ['n-t2', 'n-p'][i],
+          targetHandle: ['run-in', 'discharge'][i],
+          type: 'pipe',
+          data: { lineType: 'process', lineNumber: ln, lineSize: '', lineName: '', sourceDirection: { x: 1, y: 0 }, targetDirection: { x: -1, y: 0 } },
+        })),
+      ],
     },
   ],
 };

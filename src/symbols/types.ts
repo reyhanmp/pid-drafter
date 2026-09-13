@@ -100,6 +100,17 @@ export interface SymbolDefinition {
   defaultHeight: number;
   /** Declared connection ports (process piping and/or signal lines). */
   ports: SymbolPort[];
+  /**
+   * Port ids on this symbol that may carry MORE THAN ONE pipe (PRD §7a items
+   * 1+2). Empty/absent for every symbol whose ports are single-connection,
+   * which is all of them except the tee: a nozzle is a hole in a vessel wall
+   * and two pipes cannot bolt to one flange, but a header port on a branch
+   * fitting is the definition of a point where a line becomes two.
+   *
+   * Enforced in src/validation/connectionRules.ts — both when a connection is
+   * attempted on the canvas and when existing data is checked.
+   */
+  multiBranchPorts?: string[];
   /** SVG geometry renderer. */
   Geometry: ComponentType<SymbolGeometryProps>;
   /** Prefix used to seed the tag field when a new instance is dropped, e.g. "V". */

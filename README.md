@@ -30,17 +30,26 @@ node scripts/verify-numbering.cjs  http://127.0.0.1:5199/   # tag / line numberi
 node scripts/verify-undo.cjs       http://127.0.0.1:5199/   # undo / redo
 node scripts/verify-freeline.cjs   http://127.0.0.1:5199/   # free-line mode
 node scripts/verify-bug3.cjs       http://127.0.0.1:5199/   # connection preview
+node scripts/verify-connections.cjs http://127.0.0.1:5199/  # one pipe per nozzle + branch fittings
 ```
 
 These are executable gates, not decoration. `verify-port-outline.cjs` mounts
-all 67 symbols and measures every port against the actual drawn ink — it
+all 68 symbols and measures every port against the actual drawn ink — it
 caught two real defects (`column-complete`'s reboiler stopping 12px short of
 its own bottoms nozzle, and `hx-kettle-reboiler`'s arc bulging outside its
 bounding box) that would otherwise have shipped.
 
+The gates are themselves mutation-tested, and the mutations ship with them:
+
+```bash
+node scripts/mutate-connections.cjs http://127.0.0.1:5199/   # 8 defects, 8 must be caught
+node scripts/mutate-size-reader.cjs http://127.0.0.1:5199/   # the geometry gate must not guess
+```
+
+
 ## What makes it a chemical-engineering tool
 
-**Symbols are typed engineering objects.** Each of the 67 symbols declares
+**Symbols are typed engineering objects.** Each of the 68 symbols declares
 named ports with positions and outward direction normals, a category, a
 default size and a tag prefix. A port is a *nozzle*, so a pipe must approach
 it straight on, and a nozzle carries its own size and flange rating.
@@ -95,7 +104,7 @@ Every symbol is a self-contained module in `src/symbols/`, registered in
 `src/symbols/index.ts`. The palette is derived from that registry, so
 categories and counts need no manual maintenance.
 
-**67 symbols, 11 categories:**
+**68 symbols, 11 categories:**
 
 - **Vessels (7)**: Horizontal Vessel, Vertical Vessel, Knock-out Drum, Three-Phase Separator, Silo, Storage Tank (Cone Roof), Storage Tank (Floating Roof)
 - **Columns (4)**: Tray Column, Packed Column, Distillation Column (w/ Condenser + Reboiler), Absorber / Packed Tower
@@ -104,7 +113,7 @@ categories and counts need no manual maintenance.
 - **Valves (11)**: Gate Valve, Globe Valve, Ball Valve, Butterfly Valve, Check Valve, Control Valve, Three-Way Valve, Motor-Operated Valve, Pressure Regulator, Relief Valve (PSV), Solenoid Valve
 - **Instruments (11)**: Instrument Bubble (Field), Instrument Bubble (DCS), DCS Controller, Pressure Gauge, Local Indicator, Temperature / Pressure / Flow / Level / Differential-Pressure Transmitter, Process Analyzer
 - **Heat Exchangers (8)**: Heat Exchanger (shell & tube), Plate, Double-Pipe, Condenser, Kettle Reboiler, Evaporator, Air-Cooled, Fired Heater
-- **Piping Accessories (9)**: Concentric Reducer, Restriction Orifice, Strainer, Flange Pair, Inline Flow Meter, Spectacle Blind, Expansion Joint, Steam Trap, Pipe Support
+- **Piping Accessories (10)**: Concentric Reducer, Restriction Orifice, Strainer, Tee / Branch Fitting, Flange Pair, Inline Flow Meter, Spectacle Blind, Expansion Joint, Steam Trap, Pipe Support
 - **Agitators (1)**: Agitator
 - **Signal & Logic (1)**: Relay / Solenoid Pilot (XY)
 - **Terminators (3)**: Vent to Atmosphere, Drain Point, Off-Page / Tie-In Connector
@@ -122,6 +131,26 @@ conventions live in `src/symbols/handleGeometry.ts`.
    drawn outline, not the bounding box.
 
 That is the whole cost: one file, one registry line, one gate.
+
+## Connectivity: one pipe per nozzle
+
+A nozzle is a hole in a vessel wall with a flange on it, so two pipes cannot
+bolt to one. Dragging a second pipe onto a spent nozzle is refused **during the
+drag** — the edge is never created, and a notice names the nozzle and offers the
+one action that resolves it: drop a branch fitting on a free nozzle and run the
+line through that. A nozzle already carrying a pipe renders filled, so the rule
+is visible before you hit it.
+
+Data that never went through a drag (a loaded JSON file, a hand-edited one) is
+condemned by the validity panel instead: *"Nozzle overloaded — V-101 Outlet
+carries 2 pipes."* The canvas and the panel read the same rule, so they cannot
+disagree about whether a drawing is buildable.
+
+**Branching happens through a fitting, and the fitting is drawn.** The
+`tee-branch` symbol is the one place in the library where a port may carry more
+than one pipe, and only on the ports it declares (its run). Its branch port
+takes one pipe like every other nozzle. Where a line becomes two is a physical
+fitting on the drawing, not an invisible property of a connection point.
 
 ## Data sheets
 

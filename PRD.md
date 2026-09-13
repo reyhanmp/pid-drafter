@@ -2,7 +2,7 @@
 
 **Status:** Draft for review (revised with industry-research pass)
 **Author:** Hermes (for Reyhan Prajesa)
-**Date:** 2026-09-08, revised 2026-09-12, 2026-09-13 (three passes)
+**Date:** 2026-09-08, revised 2026-09-12, 2026-09-13, 2026-09-14 (four passes)
 **Supersedes:** v1 MVP at `~/projects/pid-drafter/` (to be archived, not iterated on)
 
 ---
@@ -155,6 +155,86 @@ sufficient at this scale. See §2 for the updated goal list and §7,
 item 4 for how each open question was resolved.
 
 ---
+
+## 0e. Revision note (2026-09-14) — connectivity soundness
+
+Closes §7a items **1 and 2**, the two it ranked cheapest and most
+fundamental, in one decision recorded as §4.12. One commit.
+
+**1. The engine asserted a property it did not hold.** §4.1 claims the
+validity check enforces "structurally correct, not just visually
+plausible". Nothing limited how many pipes could attach to one nozzle —
+three runs could converge on one flange and the engine reported nothing.
+A nozzle is a hole in a vessel wall with a flange on it; that drawing is
+not of anything buildable. Graph validity without this rule is not
+structural correctness, so the document was describing a stronger tool
+than the one that existed — the same class of error as §0b, found by
+taking §7a's own list seriously rather than by a user complaint.
+
+Refused in two places on purpose: **during the drag** (`isValidConnection`,
+so the edge is never created — create-then-delete is indistinguishable
+from a broken drag) and **in the validator** (`port-overloaded`, so data
+that never went through a drag is still condemned). If the canvas refused
+a connection that the panel then blessed, one of the two would be lying
+and the user could not tell which.
+
+**2. Branching is a fitting, and the fitting is drawn.** §7a item 2
+noted the library had no junction symbol, so the most ordinary
+arrangement in process piping — a header with branches — could not be
+drawn the normal way. The rule above would have made that permanent
+rather than merely awkward, which is why the two items are one decision.
+`tee-branch` (68th symbol, Piping Accessories) declares its run ports as
+`multiBranchPorts` — the **only** place in the library where a port
+carries more than one pipe. Its branch port takes one pipe like every
+other nozzle, so the exception is per-port rather than per-symbol; an
+unrecognised symbol gets the strict rule, so a symbol that fails to load
+cannot become a place pipes pile up. Where a line becomes two is now a
+physical fitting on the drawing, not an invisible property of a port.
+
+**3. A refusal must offer the legal alternative.** Blocking a connection
+with no way forward is an obstacle, not a rule. The refusal names the
+blocked nozzle and offers to place a branch fitting on equipment that
+still has a free nozzle. Spent nozzles render filled, so the rule is
+visible before you meet it by being refused.
+
+**4. Two real defects were found by the new gate, in the remediation
+path the gate was written to protect.** The tee offer followed the wrong
+end of the refused connection (`target ?? source`), so dragging from a
+spent nozzle into a free one offered to fix the vessel that was never the
+problem; and the tee dropped 4px *under* the equipment it branched from,
+because the offset was a fixed 24px from a port sitting on the boundary.
+Both were found only after the checks were rewritten to be geometric —
+the first version of the port test dragged onto a **free** tee port, which
+any port accepts, so it passed with the branch-fitting exception deleted
+entirely. A check that passes against the defect it exists to catch is
+worse than no check, because it certifies the defect.
+
+**5. Two gate-quality problems fixed rather than worked around.** The
+geometry gate read each symbol's declared size out of its source and
+**used to guess 80x80 when that read failed**, so a symbol whose size is a
+computed expression was reported as having every port 28px off the drawn
+ink — a gate inventing a defect. It now throws and names the symbol
+(`scripts/mutate-size-reader.cjs` pins that). And the §4.9 tag fixture had
+all 7 of its real reference line numbers attached to one vessel nozzle and
+one pump nozzle — seven pipes on one flange. It had been wrong since it
+was written and only surfaced when this rule arrived; the fixture was
+corrected, not the rule.
+
+**6. `npx tsc --noEmit` at the repo root is a no-op and was reporting
+false clean.** The root `tsconfig.json` is solution-style (`"files": []`
+plus project references), so the check type-checked nothing while printing
+no errors, and reported a broken build as clean twice. `tsc -b` is the
+real check and is what `npm run build` runs. Worth recording because the
+failure mode is a green light, not a red one.
+
+**Gate:** `scripts/verify-connections.cjs` (9 checks, real mouse input) —
+must print `CONNECTIONS_PASS`. `scripts/mutate-connections.cjs`
+deliberately reintroduces each defect this section claims to catch (guard
+bypassed, rule made permissive, exception removed, exception applied
+per-symbol, tee placed under the equipment, offer following the wrong
+end, validator check dropped, refusal gone silent) and requires the
+matching check to fail; all 8 mutations are caught. Written because the
+gate's own first version passed against the mutation it existed to catch.
 
 ## 1. Problem & Purpose
 
@@ -340,8 +420,9 @@ enterprise-PLM territory):**
   unrelated files to add a symbol (this was fine in v1 already via the
   `EquipmentKind` union + symbols dict — keep that pattern, formalize
   it as a documented convention).
-- **SHIPPED STATUS (2026-09-13): the library now holds 67 symbols across
-  11 categories, 161 declared ports.** The original 30-symbol core set is
+- **SHIPPED STATUS (2026-09-14): the library holds 68 symbols across
+  11 categories, 164 declared ports.** (67/161 on 2026-09-13; +1 symbol and
+  its 3 ports on 2026-09-14 — the `tee-branch` branch fitting, §4.12.) The original 30-symbol core set is
   complete, plus a 37-symbol expansion authored against ISA-5.1 / ISO
   10628: storage tanks (cone/floating roof), knock-out drum, 3-phase
   separator, silo, complete distillation column, absorber tower,
@@ -576,8 +657,8 @@ acceptance gate, not an aspiration.
 - Every port may declare a nominal size and an ANSI/ASME class, shown in
   the data sheet's nozzle editor. The real drawing sizes every nozzle
   (`ø1 1/2" ANSI 150#`); bare geometry is not a nozzle schedule.
-- Nozzle sizes are deliberately **not defaulted** in the 67 symbol
-  definitions. A vessel has no inherent nozzle size — it is a project
+- Nozzle sizes are deliberately **not defaulted** in the 68 symbol
+  definitions (67 when this shipped; §0e adds the branch fitting). A vessel has no inherent nozzle size — it is a project
   decision. Field, suggestions and schedule are provided; the numbers come
   from the engineer. Defaulting them would put fabricated values into a real
   engineering document.
@@ -654,21 +735,113 @@ node scripts/verify-numbering.cjs    http://127.0.0.1:5199/   # 4.3  configurabl
 node scripts/verify-undo.cjs         http://127.0.0.1:5199/   # 4.10 undo / redo
 node scripts/verify-freeline.cjs     http://127.0.0.1:5199/   # 4.1  free-line carve-out
 node scripts/verify-bug3.cjs         http://127.0.0.1:5199/   # 4.3  connection preview router
+node scripts/verify-connections.cjs  http://127.0.0.1:5199/   # 4.12 one pipe per nozzle + branch fittings
 ```
 
 Each prints a `*_PASS` line and exits 0. They are driven by real browser input
 (Playwright/CDP), never synthetic DOM events: React Flow's drag handling binds
 move listeners on `window`, so a gate that faked input would pass while the
-feature was broken in the user's hands. Two further rules the gates encode:
+feature was broken in the user's hands. Those gates have themselves been
+mutation-tested; the mutations live in the repo so they can be re-run:
+
+```
+node scripts/mutate-connections.cjs  http://127.0.0.1:5199/   # 8 deliberate defects, 8 must be caught
+node scripts/mutate-size-reader.cjs  http://127.0.0.1:5199/   # the port-outline gate must refuse to guess
+```
+
+Four further rules the gates encode:
 
 - **Assert on the thing that would break, not a proxy for it.** Undo is checked
   by comparing node POSITIONS and undo-DEPTH DELTAS, never node counts — a
   no-op undo leaves the count unchanged and would satisfy a lax test.
 - **Mutation-test the gate.** A gate that has never failed is not evidence.
   Each fix behind §4.3 and §4.10 was reverted in turn to confirm the gate
-  fails on the specific checks that map to it.
+  fails on the specific checks that map to it. §4.12's gate earned this the
+  hard way: two of its checks initially passed against the very defect they
+  were written to catch — one dragged onto a FREE tee port (which any port
+  accepts, so it passed with the exception deleted entirely), the other relied
+  on an incidental screen coordinate. Both were rewritten to require a port
+  that is already spent and a geometric separation respectively.
+- **A gate must not report a defect it cannot see.** `verify-port-outline.cjs`
+  reads each symbol's declared size out of its source to convert screen
+  measurements back into node-local units, and it USED to fall back to a
+  guessed 80x80 when that read failed — so a symbol whose size was a computed
+  expression was reported as having every port "28px off the drawn ink", which
+  is a gate inventing a geometry bug. It now throws and names the symbol.
+  `scripts/mutate-size-reader.cjs` pins that behaviour.
+- **A test fixture that cannot represent a real drawing is a false-positive
+  factory.** The §4.9 tag fixture had all 7 of its reference line numbers
+  attached to one vessel nozzle and one pump nozzle — seven pipes on one
+  flange. It went unnoticed until §4.12 arrived and the "clean drawing produces
+  no warnings" check started failing for the right reason. The fixture was
+  wrong, not the rule; it is now a header arrangement with two tees.
 
 ---
+
+### 4.12 Connectivity soundness + branch fittings (NEW — 2026-09-14)
+
+The two items §7a ranked cheapest-and-most-fundamental, built together
+because they are one decision. Recorded here as the spec, not as a
+description of the code.
+
+**4.12.1 One pipe per nozzle.** A nozzle is a hole in a vessel wall with a
+flange on it. Two pipes cannot bolt to one flange, so a drawing showing three
+runs converging on one nozzle is not a drawing of anything buildable. §4.1
+claims the engine checks structural correctness; graph validity without this
+rule is not structural correctness, and the tool asserted a property it did
+not hold.
+
+Enforced at **two** points, deliberately, and both are required:
+
+- **During the drag** (`isValidConnection`). The refused connection is never
+  created. Creating an edge and then silently deleting it is indistinguishable
+  from a broken drag, so the refusal has to happen while the user's hand is
+  still on the gesture.
+- **In the validity engine** (`port-overloaded`, a hard error). Data that never
+  went through a drag — a JSON load, a hand-edited file — is condemned by the
+  panel. If the canvas refused connections while the panel blessed the
+  resulting file, one of the two would be lying and the user could not tell
+  which.
+
+**4.12.2 Single-connection is the default; the exception is declared per port.**
+A symbol declares `multiBranchPorts?: string[]` — port ids that may carry more
+than one pipe — and empty/absent means every port takes exactly one. An
+unrecognised symbol gets the STRICT rule, so a symbol that fails to load cannot
+become a place pipes pile up.
+
+**4.12.3 The branch fitting owns the split.** `tee-branch` (Piping Accessories,
+3 ports: Run Inlet, Run Outlet, Branch) declares its two run ports as
+multi-branch; its branch port does not. So:
+
+- a header with branches is drawable — the arrangement this rule would
+  otherwise make impossible, and the most ordinary arrangement in process
+  piping;
+- the exception is per-port, not per-symbol. A tee whose *every* port accepted
+  any number of pipes would be a sanctioned version of the exact defect the
+  rule forbids, and there is a check for that specific mistake.
+
+Where a line becomes two is a fitting, and the fitting is drawn. Branching that
+is not visible as a fitting is not branching; it is a drawing error.
+
+**4.12.4 A refusal must offer the legal alternative.** Blocking a connection
+without offering a way forward is just an obstacle, so the refusal does three
+things: names the blocked equipment and nozzle, and — when that equipment still
+has a free nozzle — offers to place a branch fitting on it, tagged uniquely as
+the house code for a fitting (`TEE-101`, `TEE-102`, …; a tee has no equipment
+number because it is identified by its line number). The offer follows the
+BLOCKED end, not the dragged-to end: a drag from a spent nozzle into a free one
+must not offer to fix the equipment that was never the problem.
+
+**4.12.5 A spent nozzle looks spent.** Ports carrying a pipe render filled. A
+rule the user only meets by being refused reads as a broken tool; a nozzle that
+visibly already has a pipe on it reads as engineering.
+
+**Acceptance gate:** `node scripts/verify-connections.cjs` — 9 checks driven by
+real mouse input, plus `node scripts/mutate-connections.cjs`, which reintroduces
+each specific defect (guard bypassed, rule made permissive, exception removed,
+exception applied per-symbol, tee placed under the equipment, offer following
+the wrong end, validator check dropped, refusal gone silent) and requires the
+matching check to FAIL. All 8 mutations are caught.
 
 ## 5. Technical Approach
 
@@ -817,16 +990,16 @@ of truth over any generic P&ID software reference material.
 Ordered by how much they cost on a real drawing, not by how hard they are.
 All are **unbuilt**, verified against source, not inferred from absence.
 
-1. **Nothing limits how many pipes attach to one nozzle.** Two runs can be
-   drawn onto the same port and the validity engine reports nothing, even
-   though §4.1's whole premise is "structurally correct, not just visually
-   plausible". A model that permits physically impossible connectivity is
-   not structurally correct, so this is a soundness hole in the load-bearing
-   feature rather than a missing nicety. Cheapest of these to fix.
-2. **No tee / junction fitting in the 67-symbol library.** A header with
-   branches — the most ordinary arrangement in process piping — cannot be
-   drawn the normal way. Either the library gains a junction symbol or a port
-   is explicitly allowed to fan out; the current state can do neither.
+1. ~~**Nothing limits how many pipes attach to one nozzle.**~~ **RESOLVED
+   2026-09-14 — now §4.12.** A nozzle carries exactly one pipe, refused during
+   the drag and reported by the validity engine on data that arrived any other
+   way. The decision lives in one place (`src/validation/connectionRules.ts`)
+   so the canvas and the panel cannot disagree.
+2. ~~**No tee / junction fitting in the 67-symbol library.**~~ **RESOLVED
+   2026-09-14 — now §4.12.** The library holds 68 symbols: `tee-branch` adds a
+   3-port branch fitting whose declared run ports are the ONE place in the
+   library where more than one pipe may attach. Branching is therefore a
+   visible fitting in the drawing, not an invisible property of a port.
 3. **Battery-limit / scope-boundary lines do not exist** (§6 tier 5). The
    reference drawing uses them; `lineType` has no slot for them. See §6.
 4. **No line-hop at crossings.** Real P&IDs break one line over another where
@@ -867,7 +1040,7 @@ All are **unbuilt**, verified against source, not inferred from absence.
 
 - ~~Undo/redo~~ — **NO LONGER DEFERRED; built 2026-09-13 (`cdccd2c`), §4.10.**
   The deferral was taken against a 30-symbol single-sheet tool; the tool is now
-  67 symbols, multi-sheet, with derived lists and a numbering panel, and the
+  68 symbols, multi-sheet, with derived lists and a numbering panel, and the
   cost of a mis-drag grew with it while the cost of building undo did not.
   Re-taking a deferral when its premise expires is the point of recording the
   premise.

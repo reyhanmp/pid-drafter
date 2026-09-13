@@ -6,6 +6,7 @@
 import { symbolsByKind } from '../symbols/index';
 import { getRenderedPorts } from '../symbols/effectivePorts';
 import { isOffpageConnector, resolveOffpageRef, type SheetRef } from './offpageReferences';
+import { findOverOccupiedPorts } from './connectionRules';
 import { readIsaTag } from './isaTags';
 import type { EquipmentNodeData, PipeEdgeData } from '../types/diagram';
 
@@ -27,7 +28,8 @@ export type ValidationErrorKind =
   | 'duplicate-tag'
   | 'unconnected-pipe'
   | 'offpage-broken-reference'
-  | 'malformed-instrument-tag';
+  | 'malformed-instrument-tag'
+  | 'port-overloaded';
 
 export interface ValidationError {
   kind: ValidationErrorKind;
@@ -134,6 +136,36 @@ function checkPortConnections(nodes: DiagramNode[], edges: DiagramEdge[]): Valid
 }
 
 /**
+ * Rule 5 (PRD §4.1 + §7a items 1+2): a nozzle carries exactly ONE pipe.
+ *
+ * This is the rule that makes §4.1's premise true rather than merely
+ * plausible. Before it, two runs could be dragged onto the same port and the
+ * panel reported nothing, so a diagram showing three lines converging on one
+ * vessel nozzle — which is not a drawing of anything buildable — passed every
+ * check the tool had.
+ *
+ * The exception is a branch fitting's header port (a tee's run), declared on
+ * the symbol itself. The decision lives in connectionRules.ts so the canvas
+ * (which refuses the connection outright) and this rule (which catches data
+ * that arrived some other way, e.g. a JSON load) can never disagree — a
+ * refusal on the canvas plus a clean bill of health from the panel would be
+ * worse than either alone.
+ */
+function checkPortOccupancy(nodes: DiagramNode[], edges: DiagramEdge[]): ValidationError[] {
+  return findOverOccupiedPorts(nodes, edges).map((occ) => {
+    const portLabel = symbolsByKind[occ.kind]?.ports.find((p) => p.id === occ.handleId)?.label ?? occ.handleId;
+    return {
+      kind: 'port-overloaded' as const,
+      message:
+        `Nozzle overloaded — "${occ.nodeTag}" ${portLabel} carries ${occ.edgeIds.length} pipes. ` +
+        `One pipe per nozzle; branch the line through a Tee / Branch Fitting.`,
+      nodeIds: [occ.nodeId],
+      edgeId: occ.edgeIds[0],
+    };
+  });
+}
+
+/**
  * Rule 4 (PRD §4.9.2): an instrument tag must carry function letters and a
  * loop number.
  *
@@ -174,6 +206,7 @@ export function validateDiagram(nodes: DiagramNode[], edges: DiagramEdge[]): Val
     errors: [
       ...checkUniqueTags(nodes),
       ...checkPortConnections(nodes, edges),
+      ...checkPortOccupancy(nodes, edges),
       ...checkInstrumentTagShape(nodes),
     ],
   };

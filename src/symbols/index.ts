@@ -55,6 +55,7 @@ import hxEvaporator from './hx-evaporator';
 import reducerConcentric from './reducer-concentric';
 import restrictionOrifice from './restriction-orifice';
 import strainer from './strainer';
+import teeBranch from './tee-branch';
 import flangePair from './flange-pair';
 import instrumentFlowmeterInline from './instrument-flowmeter-inline';
 import spectacleBlind from './spectacle-blind';
@@ -143,6 +144,7 @@ export const allSymbols: SymbolDefinition[] = [
   reducerConcentric,
   restrictionOrifice,
   strainer,
+  teeBranch,
   flangePair,
   instrumentFlowmeterInline,
   spectacleBlind,

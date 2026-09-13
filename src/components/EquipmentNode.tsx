@@ -74,6 +74,21 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
   const ports = symbol ? getRenderedPorts(d.kind, d.ports, d.rotation, width, height) : [];
 
   /**
+   * Pipes already sitting on each of this node's ports (PRD §7a items 1+2),
+   * counted by the canvas from the sheet's real edges and handed down as a
+   * transient data field — the same pattern as `__loopHighlight`. They serve
+   * two purposes and both matter:
+   *
+   *   1. A port holding a pipe is drawn filled rather than hollow, so the
+   *      single-connection rule is visible BEFORE the user tries to break it.
+   *      A rule you only meet by being refused reads as a broken tool.
+   *   2. `getSuggestedPortId` finds the first free nozzle, so the canvas can
+   *      offer to place a branch fitting on a legally-connectable port
+   *      instead of just rejecting the connection.
+   */
+  const occupiedPorts = (d.__occupiedPorts ?? {}) as Record<string, number>;
+
+  /**
    * Manual nozzle-reposition drag, kept entirely separate from React
    * Flow's own connection-drag system. React Flow starts a CONNECTION
    * drag from a mousedown that lands on the <Handle> element itself; our
@@ -300,6 +315,15 @@ function EquipmentNode({ id, data, selected }: NodeProps) {
                 transform: 'none',
                 background: port.kind === 'signal' ? '#888' : '#1a1a1a',
                 border: '1px solid #fff',
+                /*
+                 * A nozzle with a pipe on it renders as a filled target: this
+                 * is the only on-canvas signal that the port is spent. A tee's
+                 * branch-eligible ports stay hollow because they legitimately
+                 * take more than one connection.
+                 */
+                ...(occupiedPorts[port.id] > 0 && !symbol?.multiBranchPorts?.includes(port.id)
+                  ? { boxShadow: `0 0 0 2px ${port.kind === 'signal' ? '#888' : '#1a1a1a'}` }
+                  : {}),
               }}
               title={port.label}
             />

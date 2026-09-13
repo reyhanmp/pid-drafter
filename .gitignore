@@ -25,3 +25,8 @@ dist-ssr
 
 # Reference material (not for redistribution)
 reference/
+
+# Test-run scratch
+**/*.bak
+**/*.orig
+scripts/tmp/

@@ -19,6 +19,7 @@ import EngineeringListsPanel from './components/EngineeringListsPanel';
 import NumberingSettingsPanel from './components/NumberingSettingsPanel';
 import SymbolPalette from './components/SymbolPalette';
 import ValidationPanel from './components/ValidationPanel';
+import ConnectNoticePanel, { type ConnectNotice } from './components/ConnectNoticePanel';
 import DataSheetPanel from './components/DataSheetPanel';
 import LineDataSheetPanel from './components/LineDataSheetPanel';
 import SheetTabs from './components/SheetTabs';
@@ -26,6 +27,12 @@ import ProjectTopBar from './components/ProjectTopBar';
 import { useProject } from './project/useProject';
 import { symbolsByKind } from './symbols';
 import { validateDiagram, validateProject, type DiagramNode, type DiagramEdge } from './validation/validateDiagram';
+import {
+  canConnect,
+  getSuggestedPortId,
+  numberOccupiedPorts,
+  portKey,
+} from './validation/connectionRules';
 import { validateSpecCompatibility } from './validation/specValidation';
 import { validateTagSemantics } from './validation/tagSemantics';
 import { getProjectLoopMates } from './validation/instrumentLoops';
@@ -37,6 +44,13 @@ const nodeTypes = { equipment: EquipmentNode };
 const edgeTypes = { pipe: PipeEdge };
 
 const GRID = 20;
+
+/**
+ * Gap between a branch fitting's box and the equipment it branches from, on
+ * top of the fitting's own span. Enough that a grid-snapped placement cannot
+ * land the fitting's edge back inside the equipment box.
+ */
+const CLEARANCE = 14;
 
 function DrawingCanvas() {
   // All multi-sheet project state lives in the store (PRD §4.8) — this
@@ -80,6 +94,18 @@ function DrawingCanvas() {
 
   const nodes = activeSheet?.nodes ?? [];
   const edges = activeSheet?.edges ?? [];
+
+  /**
+   * Per-port pipe counts for the whole active sheet (PRD §7a items 1+2),
+   * computed ONCE from the real edges and consumed three ways: pushed down to
+   * each node as a transient data field (so EquipmentNode can draw a spent
+   * nozzle as spent), used by the connect guard to decide whether a connection
+   * is physically possible, and used to find the free nozzle a branch fitting
+   * should go on. One occupancy definition for all three, so the port the user
+   * sees as empty is the port the rule agrees is empty.
+   */
+  const byNodeId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+  const occupiedPorts = useMemo(() => numberOccupiedPorts(edges), [edges]);
 
   /**
    * Free lines have no node endpoints, so they cannot be react-flow edges
@@ -164,6 +190,128 @@ function DrawingCanvas() {
   );
 
   const handleConnect = useCallback((connection: Parameters<typeof onConnect>[0]) => onConnect(connection, nodes), [onConnect, nodes]);
+
+  /**
+   * Refuse a connection onto a nozzle that already carries a pipe (PRD §7a
+   * items 1+2, decided in src/validation/connectionRules.ts).
+   *
+   * This is the place the rule has to be enforced, because it runs DURING the
+   * drag: react-flow asks before creating the edge, so the user sees the
+   * refusal in their hand rather than watching a line appear and then vanish.
+   * `onConnect` alone would be too late — by then the edge exists, and
+   * silently deleting it again is indistinguishable from a broken drag.
+   *
+   * Two ends can be refused at once (dragging a pipe between two spent
+   * nozzles) and the message names whichever is checked first, so the user is
+   * told about one concrete problem rather than a compound one.
+   */
+  /**
+   * Explains the refusal, and offers the action that actually resolves it —
+   * dropping a branch fitting on a free nozzle and running the line through
+   * that. A bare "no" would leave the user with no legal way to draw the
+   * header+branch arrangement, which is the ordinary case this rule exists to
+   * make drawable.
+   */
+  const rejectConnection = useCallback(
+    (nodeId: string, reason: string) => {
+      const node = byNodeId.get(nodeId);
+      const data = node?.data as unknown as EquipmentNodeData | undefined;
+      if (!node || !data) {
+        setConnectNotice({ message: reason });
+        return;
+      }
+      const occupied: Record<string, number> = {};
+      for (const port of symbolsByKind[data.kind]?.ports ?? []) {
+        const count = occupiedPorts.get(portKey(nodeId, port.id)) ?? 0;
+        if (count > 0) occupied[port.id] = count;
+      }
+      const freePortId = getSuggestedPortId(data.kind, occupied, symbolsByKind[data.kind]?.multiBranchPorts);
+      const freePort = symbolsByKind[data.kind]?.ports.find((p) => p.id === freePortId);
+      setConnectNotice({
+        message: freePort
+          ? `${reason} ${data.tag} still has a free nozzle (${freePort.label}) — a tee goes there.`
+          : reason,
+        tee: freePort
+          ? {
+              nodeId,
+              portId: freePort.id,
+              nodeLabel: data.tag,
+              portLabel: freePort.label,
+            }
+          : undefined,
+      });
+    },
+    [byNodeId, occupiedPorts],
+  );
+
+  const addTeeAt = useCallback(
+    (tee: NonNullable<ConnectNotice['tee']>) => {
+      const node = byNodeId.get(tee.nodeId);
+      const data = node?.data as unknown as EquipmentNodeData | undefined;
+      if (!node || !data) return;
+      const symbol = symbolsByKind[data.kind];
+      const port = symbol?.ports.find((p) => p.id === tee.portId);
+      if (!port) return;
+
+      /**
+       * Place the tee just outside the free nozzle, along its outward normal,
+       * SNAPPED to the grid so it lines up with the run.
+       *
+       * The gap is the fitting's own size plus a margin, measured from the
+       * nozzle — not an arbitrary distance. The first version used a fixed 24px
+       * from the port point, which for a nozzle on the top edge left the tee's
+       * lower 4px underneath the vessel: the port sits ON the boundary, so the
+       * gap has to cover the half of the fitting that extends BACK toward the
+       * equipment. A branch fitting buried under the thing it branches from is
+       * worse than no offer at all, and only a geometric assertion catches it.
+       */
+      const TEE = symbolsByKind['tee-branch'];
+      const teeSpan = Math.max(TEE?.defaultWidth ?? 24, TEE?.defaultHeight ?? 24);
+      const gap = teeSpan + CLEARANCE;
+      const pos = {
+        x: Math.round((node.position.x + port.x + port.direction.x * gap) / GRID) * GRID,
+        y: Math.round((node.position.y + port.y + port.direction.y * gap) / GRID) * GRID,
+      };
+
+      /**
+       * A branch fitting is tagged as a fitting, not as a piece of equipment
+       * with an auto-incremented equipment tag. Vessels, pumps and the rest are
+       * numbered because they are the things a plant counts; a tee is
+       * identified by its line number, and the house code for one is `TEE-101`.
+       * The tag still has to be UNIQUE (that rule is what stops two things
+       * answering to one name), so it is numbered from the project's existing
+       * `TEE-` tags, falling back to the plain `TEE-101` form.
+       */
+      const used = sheets.flatMap((s) => s.nodes.map((n) => (n.data as unknown as EquipmentNodeData).tag ?? ''));
+      let tag = 'TEE-101';
+      let seq = 101;
+      while (used.includes(tag)) {
+        seq += 1;
+        tag = `TEE-${seq}`;
+      }
+
+      addNodeFromSymbol('tee-branch', pos, { tag });
+      setConnectNotice({
+        message: `${tag} placed on ${tee.nodeLabel} ${tee.portLabel}. Draw the line into the tee's run and branch off it.`,
+      });
+    },
+    [addNodeFromSymbol, byNodeId, sheets],
+  );
+
+  const isValidConnection = useCallback(
+    (connection: Parameters<typeof canConnect>[0]) => {
+      const decision = canConnect(connection, nodes, edges);
+      if (decision.allowed) return true;
+      // The REFUSED end, as decided by the rule — not "whichever end is the
+      // target". See ConnectionDecision.blockedNodeId for why that distinction
+      // is load-bearing: the tee offer would otherwise land on the equipment
+      // that was never the problem.
+      const culprit = decision.blockedNodeId;
+      if (culprit) rejectConnection(culprit, decision.reason ?? 'That nozzle is already in use.');
+      return false;
+    },
+    [nodes, edges, rejectConnection],
+  );
 
   /**
    * Releasing a connection drag in EMPTY SPACE draws a FREE LINE
@@ -343,6 +491,11 @@ function DrawingCanvas() {
    * so EquipmentNode can render without a parallel prop-drilling path —
    * same pattern already used for __updateNodeData. Transient keys are
    * stripped on save, so none of this reaches the project JSON.
+   *
+   * Occupancy counts are pushed down the same way (PRD §7a items 1+2), so a
+   * node draws a spent nozzle as spent without the renderer reaching for edge
+   * state — and the port the user sees as empty is the port the connect rule
+   * agrees is empty, because both read this one map.
    */
   const nodesWithHighlights = useMemo(
     () =>
@@ -354,6 +507,13 @@ function DrawingCanvas() {
         const patch: Record<string, unknown> = {};
         const strip: string[] = [];
 
+        const occupied: Record<string, number> = {};
+        for (const port of symbolsByKind[data.kind]?.ports ?? []) {
+          const count = occupiedPorts.get(portKey(n.id, port.id)) ?? 0;
+          if (count > 0) occupied[port.id] = count;
+        }
+        if (Object.keys(occupied).length > 0) patch.__occupiedPorts = occupied;
+        else if ('__occupiedPorts' in data) strip.push('__occupiedPorts');
         if (isActive || isMate) patch.__loopHighlight = true;
         else if ('__loopHighlight' in data) strip.push('__loopHighlight');
 
@@ -377,8 +537,21 @@ function DrawingCanvas() {
         for (const key of strip) delete (nextData as Record<string, unknown>)[key];
         return { ...n, data: nextData };
       }),
-    [nodes, hoveredNodeId, loopHighlight, sheetsForRefs],
+    [nodes, hoveredNodeId, loopHighlight, sheetsForRefs, occupiedPorts],
   );
+
+  /**
+   * Refusal feedback for a connection the soundness rule blocked (PRD §7a
+   * items 1+2). Held as state rather than pushed through the project store
+   * because it is pure view feedback about the user's last gesture — it must
+   * NOT be undoable, autosaved, or serialized, and it must survive long enough
+   * to be read (a transient flash during a drag would be unreadable).
+   *
+   * When the blocked equipment still has a free nozzle, `tee` carries the
+   * offer to place a branch fitting there, which is the only action that
+   * actually makes the connection legal.
+   */
+  const [connectNotice, setConnectNotice] = useState<ConnectNotice | null>(null);
 
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
   const selectedEdge = useMemo(() => edges.find((e) => e.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
@@ -428,6 +601,9 @@ function DrawingCanvas() {
             onClose={() => setShowNumbering(false)}
           />
         )}
+        {connectNotice && (
+          <ConnectNoticePanel notice={connectNotice} onPlaceTee={addTeeAt} onDismiss={() => setConnectNotice(null)} />
+        )}
         {autosaveNotice && (
           <div className="autosave-notice" data-testid="autosave-notice" role="status">
             {autosaveNotice}
@@ -468,6 +644,7 @@ function DrawingCanvas() {
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={handleConnect}
+                isValidConnection={isValidConnection}
                 onConnectEnd={handleConnectEnd}
                 onNodeDoubleClick={onNodeDoubleClick}
                 onNodeClick={onNodeClick}

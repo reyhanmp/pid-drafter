@@ -77,6 +77,14 @@ export interface EquipmentNodeData {
    */
   __resolvedLabel?: string;
   __loopHighlight?: boolean;
+  /**
+   * Transient, canvas-computed count of pipes currently attached to each of
+   * this node's ports, keyed by port id (PRD §7a items 1+2). Not persisted.
+   * Computed in App from the sheet's own edges so the render path never has to
+   * reach for edge state, and so EquipmentNode can show a spent nozzle as
+   * spent before the user attempts the connection.
+   */
+  __occupiedPorts?: Record<string, number>;
   [key: string]: unknown;
 }
 
