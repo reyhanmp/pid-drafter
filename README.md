@@ -80,8 +80,8 @@ number has corrupted their drawing.
 | Tag & line semantics | Soft | unrecognised ISA code, prefix/symbol disagreement, unparseable line number |
 
 The soft tier is soft deliberately. Real drawings extend the standards — the
-reference drawing used for this project (a client continuous-saponification
-P&ID) uses `ZSL`, `ZSH`, `HS` and `AV`, none of which ISA-5.1 defines. A tool that refused those drawings would be confidently
+reference drawing used for this project (a continuous-saponification P&ID
+supplied by a client) uses `ZSL`, `ZSH`, `HS` and `AV`, none of which ISA-5.1 defines. A tool that refused those drawings would be confidently
 wrong about correct work. Only one tag rule is a hard error: no function
 letters or no loop number, which genuinely breaks loop cross-referencing,
 list generation and export.

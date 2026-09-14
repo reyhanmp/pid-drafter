@@ -2,7 +2,7 @@
 
 **Status:** Draft for review (revised with industry-research pass)
 **Author:** Hermes (for Reyhan Prajesa)
-**Date:** 2026-09-08, revised 2026-09-12, 2026-09-13, 2026-09-14 (four passes)
+**Date:** 2026-09-08, revised 2026-09-12, 2026-09-13, 2026-09-14 (five passes)
 **Supersedes:** v1 MVP at `~/projects/pid-drafter/` (to be archived, not iterated on)
 
 ---
@@ -236,9 +236,47 @@ end, validator check dropped, refusal gone silent) and requires the
 matching check to fail; all 8 mutations are caught. Written because the
 gate's own first version passed against the mutation it existed to catch.
 
+## 0f. Revision note (2026-09-14) — redaction gap closed
+
+**The 2026-09-13 redaction (§0) missed this document.** §0 asserted that
+"the client name" had been replaced with a placeholder, but §1's author
+sentence still named the employer outright — and for this drawing the
+client and the employer are the *same* entity, which is exactly why the
+earlier pass walked past it: the scrub script shielded the employment
+line to avoid misstating the author's own CV, and the shielded sentence
+was the leak. The claim in §0 was therefore false as written, in the same
+class of error §0b was written to correct.
+
+§1 now reads "a process engineer in the oleochemical industry". The
+occupational fact is preserved — it is *why* the tool has to be credible
+enough for real documentation — while the entity name, which is the
+searchable key, is gone.
+
+**Verified rather than assumed.** Reading the reference drawing's own
+title block established what the real identifiers actually are, which
+allowed a class-based sweep rather than a guess at one string: the
+client/plant name, the engineering contractor and its sub-brand, the
+drawing number, the job number, the item number, and the real area codes
+all now return **zero** hits across tracked files. Two consequences worth
+recording:
+
+- The area codes the validators and gates are built on were already
+  placeholders, and a blind substitution would have been unnecessary —
+  confirming §0's per-token approach was right.
+- The drawing number itself was already clean; only the name leaked.
+
+**Residual, stated honestly.** This closes the current tree and all future
+commits. It does **not** clean the file contents of already-published
+commits: the name remains reachable by checking out an earlier revision of
+this document, and §0's "history is NOT rewritten" limitation therefore
+still stands. A `--tree-filter` rewrite over published history is the only
+thing that would remove it, at the cost of invalidating every SHA anyone
+has referenced; deleting and re-creating the repository from the current
+tree is the cleaner option if that is ever wanted. Not attempted here.
+
 ## 1. Problem & Purpose
 
-Reyhan is a Process Engineer at Unilever Oleochemical Indonesia. He wants a
+Reyhan is a process engineer in the oleochemical industry. He wants a
 self-hosted P&ID (Piping and Instrumentation Diagram) drafting tool that is
 credible enough to use for **real process documentation at work** — not a toy,
 not a portfolio piece. It needs to look and behave enough like an actual
