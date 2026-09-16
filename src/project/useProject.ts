@@ -24,6 +24,7 @@ import {
 } from '@xyflow/react';
 import { symbolsByKind } from '../symbols';
 import { getRenderedPorts } from '../symbols/effectivePorts';
+import { isBoundaryPortKind } from '../edges/lineKind';
 import { toReactFlowHandles } from '../symbols/toReactFlowHandles';
 import type { EquipmentNodeData, PipeEdgeData } from '../types/diagram';
 import type { Node as RFNode } from '@xyflow/react';
@@ -407,8 +408,21 @@ export function useProject(): ProjectStore {
       if (!sourceSymbol || !targetSymbol) return;
       if (!sourcePort || !targetPort) return; // defensive: refuse to create an unseated pipe
 
-      const lineType: PipeEdgeData['lineType'] =
-        sourcePort.kind === 'signal' || targetPort.kind === 'signal' ? 'signal' : 'process';
+      /**
+       * The port's own declared kind is captured onto the edge at creation
+       * time, because the renderer needs it: `lineType` records what the user
+       * asked for, but the port is the physically real end of the line, and a
+       * run seated on a battery-limit port IS a boundary line whatever flag the
+       * edge carried. Capturing it here keeps that decision out of the render
+       * hot path (no symbol lookup per frame) and makes it survive JSON
+       * round-trip. See resolveLineKind in src/edges/lineKind.ts.
+       */
+      const declaredType: PipeEdgeData['lineType'] =
+        isBoundaryPortKind(sourcePort.kind) || isBoundaryPortKind(targetPort.kind)
+          ? 'boundary'
+          : sourcePort.kind === 'signal' || targetPort.kind === 'signal'
+            ? 'signal'
+            : 'process';
 
       const newEdge: Edge = {
         id: `pipe-${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}-${Date.now()}`,
@@ -417,9 +431,18 @@ export function useProject(): ProjectStore {
         sourceHandle: connection.sourceHandle,
         targetHandle: connection.targetHandle,
         type: 'pipe',
-        markerEnd: lineType === 'process' ? { type: MarkerType.ArrowClosed, width: 14, height: 14 } : undefined,
+        /**
+         * Arrowheads belong to process piping only. A signal line is a
+         * measurement, not a flow, and a battery-limit line is a scope plane —
+         * neither has a direction of travel to point at. Deriving this from the
+         * resolved line type rather than from the raw port kind keeps a
+         * boundary line from being drawn with a flow arrow.
+         */
+        markerEnd: declaredType === 'process' ? { type: MarkerType.ArrowClosed, width: 14, height: 14 } : undefined,
         data: {
-          lineType,
+          lineType: declaredType,
+          sourcePortKind: sourcePort.kind,
+          targetPortKind: targetPort.kind,
           sourceDirection: sourcePort.direction,
           targetDirection: targetPort.direction,
         } satisfies PipeEdgeData & Record<string, unknown>,
@@ -489,9 +512,9 @@ export function useProject(): ProjectStore {
           if (e.id !== edgeId) return e;
           const nextData = { ...e.data, ...patch } as PipeEdgeData & Record<string, unknown>;
           const updated: Edge = { ...e, data: nextData };
-          // Line type toggle also flips the arrowhead convention captured at
-          // creation time (process pipes carry a directional arrow, signal
-          // lines do not).
+          // Arrowheads belong to process piping only (see the note at creation
+          // time in onConnect) — flipping a line to signal or battery-limit must
+          // drop the flow arrow, and flipping it back must restore it.
           if ('lineType' in patch) {
             updated.markerEnd =
               nextData.lineType === 'process' ? { type: MarkerType.ArrowClosed, width: 14, height: 14 } : undefined;

@@ -8,6 +8,7 @@ import {
   SERVICE_CODES,
   type LineNumberParts,
 } from '../validation/lineNumbers';
+import { LINE_TYPES, LINE_TYPE_LABELS, readLineType } from '../edges/lineKind';
 
 interface LineDataSheetPanelProps {
   edgeId: string;
@@ -251,23 +252,25 @@ export default function LineDataSheetPanel({
 
         <div className="data-sheet-field">
           <span>Line type</span>
+          {/*
+            Three options, driven by LINE_TYPE_LABELS rather than hand-written
+            buttons: the line-type vocabulary lives in src/edges/lineKind.ts, so
+            adding a kind cannot leave this panel offering two of three choices
+            (which is exactly how the battery-limit type would have been
+            invisible to the user if this list had stayed hardcoded).
+          */}
           <div className="line-type-toggle" role="radiogroup" aria-label="Line type">
-            <button
-              type="button"
-              className={'line-type-btn' + (data.lineType !== 'signal' ? ' active' : '')}
-              onClick={() => onUpdateData(edgeId, { lineType: 'process' })}
-              data-testid="line-type-process-btn"
-            >
-              Piping (solid)
-            </button>
-            <button
-              type="button"
-              className={'line-type-btn' + (data.lineType === 'signal' ? ' active' : '')}
-              onClick={() => onUpdateData(edgeId, { lineType: 'signal' })}
-              data-testid="line-type-signal-btn"
-            >
-              Instrument (dashed)
-            </button>
+            {LINE_TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                className={'line-type-btn' + (readLineType(data) === type ? ' active' : '')}
+                onClick={() => onUpdateData(edgeId, { lineType: type })}
+                data-testid={`line-type-${type}-btn`}
+              >
+                {LINE_TYPE_LABELS[type]}
+              </button>
+            ))}
           </div>
         </div>
       </div>

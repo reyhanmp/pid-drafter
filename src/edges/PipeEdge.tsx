@@ -1,45 +1,128 @@
 import { memo } from 'react';
 import { BaseEdge, EdgeLabelRenderer, useReactFlow, type EdgeProps } from '@xyflow/react';
-import { buildOrthogonalPath, pointsToPath } from './orthogonalRouting';
+import { hopSubpathsFor, subpathsToPath } from './lineHops';
 import type { PipeEdgeData } from '../types/diagram';
-import type { PortDirection } from '../symbols/types';
+import { symbolsByKind } from '../symbols/index';
+import { resolveLineKind, strokeForLineKind, isBoundaryPortKind, type KindNode } from './lineKind';
+import { LINE_DASH, STROKE } from '../symbols/style';
+
+const SELECTED_COLOR = '#0066cc';
 
 /**
  * Seamless pipe / signal-line edge.
  *
  * Unlike react-flow's built-in smoothstep/step edges (which ignore port
- * orientation and just route between two arbitrary points), this edge
- * reads each endpoint's declared port normal (stashed on edge.data at
- * connection time — see App.tsx onConnect) and builds an orthogonal path
- * whose terminal segments leave/arrive exactly along those normals, so
- * the pipe reads as physically continuous with the equipment nozzle.
+ * orientation and just route between two arbitrary points), this edge reads
+ * each endpoint's declared port normal (stashed on edge.data at connection time
+ * — see App.tsx onConnect) and builds an orthogonal path whose terminal
+ * segments leave/arrive exactly along those normals, so the pipe reads as
+ * physically continuous with the equipment nozzle.
+ *
+ * GEOMETRY comes from `hopSubpathsFor` (src/edges/lineHops.ts), which inserts a
+ * real break wherever this run crosses a heavier one (PRD §7a item 4).
+ *
+ * APPEARANCE does not get decided here. `resolveLineKind`
+ * (src/edges/lineKind.ts) is the single decision; this component only turns it
+ * into a stroke. Before that module existed this component hardcoded
+ * `strokeWidth: isSignal ? 1.25 : 2`, which is why PRD §6's line-weight
+ * hierarchy tiers 2 and 5 had no representation: there was no main-vs-branch
+ * distinction to draw, and no dash-dot type to draw it with.
  */
 function PipeEdge(props: EdgeProps) {
   const { id, sourceX, sourceY, targetX, targetY, data, selected, markerEnd } = props;
-  const { setEdges } = useReactFlow();
+  const { setEdges, getNodes, getEdges } = useReactFlow();
   const d = (data ?? {}) as Partial<PipeEdgeData> & {
-    sourceDirection?: PortDirection;
-    targetDirection?: PortDirection;
+    sourceDirection?: { x: number; y: number };
+    targetDirection?: { x: number; y: number };
+    /** Port kinds captured at connection time; see resolveLineKind. */
+    sourcePortKind?: string;
+    targetPortKind?: string;
   };
 
-  const sourceDirection: PortDirection = d.sourceDirection ?? { x: 1, y: 0 };
-  // targetDirection is the port's outward normal; the pipe must *arrive*
-  // travelling opposite to it, so we approach from the direction the
-  // normal points away from (handled inside buildOrthogonalPath via the
-  // stub-back calculation).
-  const targetDirection: PortDirection = d.targetDirection ?? { x: -1, y: 0 };
+  const nodes = getNodes() as unknown as KindNode[];
+  const edges = getEdges() as unknown as Array<{
+    id: string;
+    source: string;
+    target: string;
+    sourceHandle?: string | null;
+    targetHandle?: string | null;
+    data?: Record<string, unknown>;
+  }>;
 
-  const points = buildOrthogonalPath(
-    { x: sourceX, y: sourceY },
-    sourceDirection,
-    { x: targetX, y: targetY },
-    targetDirection,
+  /**
+   * Hop geometry is computed per EDGE ID on a cache keyed by the edges/nodes
+   * array identities, so N pipes on a sheet cost one route build each rather
+   * than N² — see hopSubpathsFor. react-flow replaces those arrays on every
+   * change, which is exactly the invalidation condition needed.
+   */
+  const subpaths = hopSubpathsFor(
+    {
+      id,
+      source: props.source,
+      target: props.target,
+      sourceHandle: props.sourceHandleId,
+      targetHandle: props.targetHandleId,
+      data: d as Record<string, unknown>,
+    },
+    edges,
+    nodes as never,
   );
-  const path = pointsToPath(points);
+  const path = subpathsToPath(subpaths);
 
-  const isSignal = d.lineType === 'signal';
-  const midIndex = Math.floor(points.length / 2);
-  const mid = points[midIndex] ?? { x: (sourceX + targetX) / 2, y: (sourceY + targetY) / 2 };
+  /**
+   * What this line IS — main run, branch run, signal, or battery limit.
+   * Resolved from the drawing (the ports it is seated on, and whether one of
+   * them is a branch fitting's branch outlet), not from a stored flag, so a
+   * re-routed pipe changes weight the moment it is re-routed.
+   */
+  const kind = resolveLineKind(
+    {
+      source: props.source,
+      target: props.target,
+      sourceHandle: props.sourceHandleId,
+      targetHandle: props.targetHandleId,
+      data: d as Record<string, unknown>,
+    },
+    nodes,
+    (k) => symbolsByKind[k]?.branchPorts,
+    (edge) => {
+      /**
+       * The port kind comes from the SYMBOL's own declaration, resolved live —
+       * not from the `sourcePortKind` / `targetPortKind` stamps taken at drag
+       * time.
+       *
+       * This was a real bug, found by a browser gate rather than by reading the
+       * code: the stamps are written when a pipe is created by dragging, so a
+       * project loaded from JSON (or any pipe created before the stamps existed)
+       * had no stamp at all, and its line fell back to `main`. A battery-limit
+       * line therefore exported as a heavy solid run in the browser while the
+       * offline exporter — which already resolved port kind from the symbol —
+       * drew it as dash-dot. Two views of the same drawing disagreeing is the
+       * worst outcome here, so the symbol is now the single source of truth and
+       * the stamps are only a fallback for a port that cannot be resolved.
+       */
+      const liveKinds = [edge.sourceHandle, edge.targetHandle].map((handle, i) => {
+        const nodeId = i === 0 ? edge.source : edge.target;
+        const node = (nodes as Array<{ id: string; data: { kind: string; ports?: unknown } }>).find(
+          (n) => n.id === nodeId,
+        );
+        if (!node || !handle) return undefined;
+        return symbolsByKind[node.data.kind]?.ports.find((p: { id: string }) => p.id === handle)?.kind;
+      });
+      const live = liveKinds.find((k) => k !== undefined);
+      if (live !== undefined) return live;
+      // Fallback: the stamps, for any port the symbol library cannot resolve.
+      if (isBoundaryPortKind(d.sourcePortKind)) return d.sourcePortKind;
+      if (d.sourcePortKind === 'signal') return 'signal';
+      if (isBoundaryPortKind(d.targetPortKind)) return d.targetPortKind;
+      return d.targetPortKind;
+    },
+  );
+  const stroke = strokeForLineKind(kind, LINE_DASH);
+
+  const flat = subpaths.flat();
+  const midIndex = Math.floor(flat.length / 2);
+  const mid = flat[midIndex] ?? { x: (sourceX + targetX) / 2, y: (sourceY + targetY) / 2 };
 
   /**
    * On a real P&ID, a piping run is labelled with its LINE NUMBER and nothing
@@ -71,13 +154,20 @@ function PipeEdge(props: EdgeProps) {
     <>
       <BaseEdge
         path={path}
-        markerEnd={markerEnd}
+        markerEnd={stroke.carriesArrow ? markerEnd : undefined}
         style={{
-          stroke: selected ? '#0066cc' : '#1a1a1a',
-          strokeWidth: isSignal ? 1.25 : 2,
-          strokeDasharray: isSignal ? '6 4' : undefined,
+          stroke: selected ? SELECTED_COLOR : STROKE,
+          strokeWidth: stroke.strokeWidth,
+          strokeDasharray: stroke.strokeDasharray,
           fill: 'none',
         }}
+        /**
+         * The resolved kind is exposed on the DOM so a browser gate can assert
+         * what the drawing actually drew — a stroke-width assertion alone would
+         * not distinguish a boundary line from a signal line, since both are
+         * drawn thin and differ only by dash pattern.
+         */
+        data-line-kind={kind}
       />
       <EdgeLabelRenderer>
         {label ? (

@@ -19,7 +19,7 @@ function Separator3PhaseGeometry({ width, height }: { width: number; height: num
             Z`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* weir plate */}
       <line x1={weirX} y1={height * 0.45} x2={weirX} y2={height} stroke={STROKE} strokeWidth={LINE_WEIGHT.medium} />

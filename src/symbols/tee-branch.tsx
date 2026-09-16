@@ -68,6 +68,13 @@ const teeBranch: SymbolDefinition = {
    * (PRD §7a item 1), enforced in src/validation/connectionRules.ts.
    */
   multiBranchPorts: ['run-in', 'run-out'],
+  /**
+   * The branch outlet (PRD §7a item 8): the pipe leaving here exists only
+   * because the run split, so it is secondary piping and draws at medium
+   * weight while the run-in/run-out header pipes draw heavy. This is the one
+   * declaration in the library that makes §6's tier-2 line weight real.
+   */
+  branchPorts: ['branch'],
   Geometry: TeeBranchGeometry,
   dexpi: { componentClass: 'Tee' },
 };

@@ -22,7 +22,7 @@ function ReactorFluidizedBedGeometry({ width, height }: { width: number; height:
             Z`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* distributor plate */}
       <line x1={0} y1={distY} x2={width} y2={distY} stroke={STROKE} strokeWidth={LINE_WEIGHT.medium} />

@@ -75,6 +75,7 @@ import relayDiamond from './relay-diamond';
 import ventTerminator from './vent-terminator';
 import drainTerminator from './drain-terminator';
 import offpageConnector from './offpage-connector';
+import scopeBoundary from './scope-boundary';
 import instrumentGaugePressure from './instrument-gauge-pressure';
 
 export const allSymbols: SymbolDefinition[] = [
@@ -157,6 +158,7 @@ export const allSymbols: SymbolDefinition[] = [
   ventTerminator,
   drainTerminator,
   offpageConnector,
+  scopeBoundary,
 ];
 
 /** Lookup table keyed by symbol kind (used by node renderers). */

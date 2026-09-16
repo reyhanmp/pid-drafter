@@ -22,7 +22,7 @@ function ReactorFixedBedGeometry({ width, height }: { width: number; height: num
             Z`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* catalyst support grids */}
       <line x1={width * 0.1} y1={bedTop} x2={width * 0.9} y2={bedTop} stroke={STROKE} strokeWidth={LINE_WEIGHT.medium} />

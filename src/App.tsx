@@ -24,6 +24,7 @@ import DataSheetPanel from './components/DataSheetPanel';
 import LineDataSheetPanel from './components/LineDataSheetPanel';
 import SheetTabs from './components/SheetTabs';
 import ProjectTopBar from './components/ProjectTopBar';
+import ExportPanel from './components/ExportPanel';
 import { useProject } from './project/useProject';
 import { symbolsByKind } from './symbols';
 import { validateDiagram, validateProject, type DiagramNode, type DiagramEdge } from './validation/validateDiagram';
@@ -148,6 +149,7 @@ function DrawingCanvas() {
   /** PRD §4.6 engineering-lists view — derived on render from `sheets`. */
   const [showLists, setShowLists] = useState(false);
   const [showNumbering, setShowNumbering] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -577,6 +579,7 @@ function DrawingCanvas() {
           autosaveStatus={autosaveStatus}
           onLoad={handleLoad}
           onOpenLists={() => setShowLists(true)}
+          onOpenExport={() => setShowExport(true)}
           canUndo={canUndo}
           canRedo={canRedo}
           undoDepth={undoDepth}
@@ -588,6 +591,16 @@ function DrawingCanvas() {
             sheets={sheets}
             projectName={projectName}
             onClose={() => setShowLists(false)}
+          />
+        )}
+        {showExport && activeSheet && (
+          <ExportPanel
+            sheet={activeSheet}
+            projectName={projectName}
+            sheetIndex={sheets.findIndex((s) => s.id === activeSheetId)}
+            sheetTotal={sheets.length}
+            blockingErrors={projectValidation.errors.length}
+            onClose={() => setShowExport(false)}
           />
         )}
         {showNumbering && (

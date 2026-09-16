@@ -14,13 +14,13 @@ function SiloGeometry({ width, height }: { width: number; height: number }) {
         height={shellBottom}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       <path
         d={`M 0 ${shellBottom} L ${width / 2} ${height} L ${width} ${shellBottom}`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* stored solids level */}
       <line

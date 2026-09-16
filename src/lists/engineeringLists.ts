@@ -45,6 +45,7 @@ import type { ProjectSheet } from '../project/types';
 import type { EquipmentNodeData, PipeEdgeData } from '../types/diagram';
 import { parseLoopNumber } from '../validation/instrumentLoops';
 import { fieldsForKind } from '../dataSheet/fieldSchemas';
+import { readLineType, LINE_TYPE_SHORT } from '../edges/lineKind';
 
 const INSTRUMENT_CATEGORIES: ReadonlySet<SymbolCategory> = new Set(['Instruments', 'Signal & Logic']);
 const VALVE_CATEGORIES: ReadonlySet<SymbolCategory> = new Set(['Valves']);
@@ -329,7 +330,7 @@ export function buildEngineeringLists(sheets: ProjectSheet[]): EngineeringListsR
       lineRows.push({
         sheet: sheet.name,
         lineNumber: (data?.lineNumber ?? '').trim() || '(unnumbered line)',
-        lineType: data?.lineType === 'signal' ? 'Signal' : 'Process',
+        lineType: LINE_TYPE_SHORT[readLineType(data)],
         lineSize: (data?.lineSize ?? '').trim(),
         lineName: (data?.lineName ?? '').trim(),
         material: (data?.materialOfConstruction ?? '').trim(),

@@ -35,8 +35,18 @@ export interface SymbolPort {
   y: number;
   /** Outward-facing unit normal — direction a pipe must approach/leave from. */
   direction: PortDirection;
-  /** What may connect here — used by the validity engine. 'process' | 'signal' */
-  kind: 'process' | 'signal';
+  /**
+   * What may connect here — used by the validity engine.
+   *
+   * `'boundary'` exists because a battery-limit / scope-boundary line has to
+   * START somewhere real: it leaves the drawing through a scope box, not out of
+   * a nozzle. Before this value existed, PRD §7a item 3 was not merely unbuilt
+   * but unimplementable — `lineType` had no slot for a boundary line, so there
+   * was no way to draw one at all. `battery-limit` is accepted as a legacy
+   * spelling by src/edges/lineKind.ts so a hand-authored file is not refused
+   * over a naming variant.
+   */
+  kind: 'process' | 'signal' | 'boundary';
   /**
    * Nozzle size, e.g. `2"` or `DN50` (PRD §4.9.3).
    *
@@ -111,6 +121,25 @@ export interface SymbolDefinition {
    * attempted on the canvas and when existing data is checked.
    */
   multiBranchPorts?: string[];
+  /**
+   * Port ids on this symbol that are the BRANCH side of a fitting — the port
+   * whose pipe is secondary piping by construction (PRD §7a item 8, §6 tier 2).
+   *
+   * A branch fitting splits a line: its `multiBranchPorts` are the header (the
+   * run, which legitimately carries several pipes) and its `branchPorts` are
+   * the single outlet created BY the split. A run leaving a branch port is
+   * therefore the definition of branch piping, and the renderer draws it at
+   * `LINE_WEIGHT.medium` instead of `heavy`.
+   *
+   * Derived from the drawing rather than declared by the user on purpose: the
+   * user already placed a tee, so the tool already knows. Asking them to also
+   * tag the pipe "branch" would be asking them to restate the drawing's own
+   * geometry, and any disagreement between the two would be unresolvable.
+   *
+   * Consulted through `resolveLineKind` (src/edges/lineKind.ts) so the canvas,
+   * the lists and export cannot each form their own opinion.
+   */
+  branchPorts?: string[];
   /** SVG geometry renderer. */
   Geometry: ComponentType<SymbolGeometryProps>;
   /** Prefix used to seed the tag field when a new instance is dropped, e.g. "V". */

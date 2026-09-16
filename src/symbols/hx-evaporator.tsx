@@ -21,7 +21,7 @@ function HxEvaporatorGeometry({ width, height }: { width: number; height: number
             Z`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* calandria tube bundle */}
       <line x1={width * 0.12} y1={calTop} x2={width * 0.88} y2={calTop} stroke={STROKE} strokeWidth={LINE_WEIGHT.medium} />

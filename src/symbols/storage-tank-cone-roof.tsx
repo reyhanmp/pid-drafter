@@ -10,7 +10,7 @@ function StorageTankConeRoofGeometry({ width, height }: { width: number; height:
         d={`M 0 ${roofH} L ${width / 2} 0 L ${width} ${roofH}`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       <rect
         x={0}
@@ -19,7 +19,7 @@ function StorageTankConeRoofGeometry({ width, height }: { width: number; height:
         height={height - roofH}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* product level line, deliberately not an outline */}
       <line

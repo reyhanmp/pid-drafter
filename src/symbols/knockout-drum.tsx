@@ -20,7 +20,7 @@ function KnockoutDrumGeometry({ width, height }: { width: number; height: number
             Z`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* demister pad */}
       <line x1={width * 0.14} y1={meshTop} x2={width * 0.86} y2={meshTop} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />

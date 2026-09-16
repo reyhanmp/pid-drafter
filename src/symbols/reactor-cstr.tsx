@@ -29,7 +29,7 @@ function ReactorCstrGeometry({ width, height }: { width: number; height: number 
             Z`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* agitator motor block on top */}
       <rect

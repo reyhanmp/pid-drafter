@@ -58,6 +58,7 @@ import type { Edge, Node } from '@xyflow/react';
 import { symbolsByKind } from '../symbols';
 import { PROJECT_SCHEMA_ID, PROJECT_VERSION, type Project, type ProjectSheet } from './types';
 import { normalizeNumbering } from './numbering';
+import { isLineType } from '../edges/lineKind';
 
 /** File-format shape: the in-memory Project plus a schema marker + timestamp. */
 export interface ProjectFileEnvelope {
@@ -230,8 +231,10 @@ function validateEdge(raw: unknown, where: string, nodeIds: Set<string>): string
     errs.push(`${where}: target equipment "${e.target}" is not on this sheet`);
   }
   const data = e.data as Record<string, unknown> | undefined;
-  if (data && data.lineType !== undefined && data.lineType !== 'process' && data.lineType !== 'signal') {
-    errs.push(`${where}: line type must be "process" (pipe) or "signal" (signal line)`);
+  if (data && data.lineType !== undefined && !isLineType(data.lineType)) {
+    errs.push(
+      `${where}: line type must be "process" (pipe), "signal" (signal line) or "boundary" (battery limit)`,
+    );
   }
 
   return errs;

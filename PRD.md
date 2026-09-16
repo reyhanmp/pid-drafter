@@ -267,12 +267,213 @@ recording:
 
 **Residual, stated honestly.** This closes the current tree and all future
 commits. It does **not** clean the file contents of already-published
-commits: the name remains reachable by checking out an earlier revision of
+commits: the name remains reachable
 this document, and §0's "history is NOT rewritten" limitation therefore
 still stands. A `--tree-filter` rewrite over published history is the only
 thing that would remove it, at the cost of invalidating every SHA anyone
 has referenced; deleting and re-creating the repository from the current
 tree is the cleaner option if that is ever wanted. Not attempted here.
+
+## 0g. Revision note (2026-09-16) — §7a items 3, 4, 5, 6, 8 built; §6 corrected by measurement
+
+§7a listed nine open items. Six are now closed. The work also **corrected
+two claims in §6** that had been carried forward since 2026-09-13 without
+ever being checked against the reference, which is the part of this note
+worth reading first.
+
+### The reference PDF is a flattened re-export
+
+Everything below follows from one discovery: the supplied reference
+(`reference/` — the issued reference drawing; its filename carries the real
+client drawing number and is deliberately not reproduced here) is **not** the
+authoring file. Every stroked path in it reports a single width of
+**0.72pt**, and text is outlined rather than live. So the line weights
+cannot be read from stroke widths — a first pass that did exactly that
+concluded "all lines are equal", which is an artifact of the export, not a
+fact about the drawing.
+
+The real weights survive as **filled bars**: where the original had a heavy
+stroke, the flattener emitted a filled rectangle roughly 3.96pt across.
+Measuring those, and converting with the ratio the same file gives
+(0.72pt stroke = 1 SVG unit), yields:
+
+```
+element                       measured       SVG units    ratio to base
+────────────────────────────────────────────────────────────────────────
+main process run (filled bar) 3.96 pt        5.50         5.5x
+secondary run (filled bar)    1.20 pt        1.67         1.67x
+base stroke (bubbles, valves) 0.72 pt        1.00         1.0x
+hairline                      0.12 pt        0.17         0.17x
+```
+
+Dash conventions, recovered the same way from collinear segment runs:
+
+```
+line class        measured pattern (pt)          written as
+─────────────────────────────────────────────────────────────────
+instrument signal  uniform 4.8 / 2.4 gap         '3.5 1.75'
+battery limit      [22.8, 2.9, 21.0, 3.0, 20.9]  '16 2 2 2'  (dash-dot)
+```
+
+**The battery-limit dash-dot is real.** §6 asserted the reference uses
+battery-limit / scope-boundary lines; that had never been verified. The
+bimodal `long-gap-dot-gap` run above confirms it, so §7a item 3 was
+building on solid ground rather than on an inherited assumption.
+
+### §6 correction 1 — heavy weight marks RUNS, not vessel outlines
+
+§6 stated: "Vessel outlines are deliberately the heaviest line on the whole
+canvas … the vessel boundary is the heaviest line on the whole drawing."
+
+The measurement does not support it. Scanning every filled bar and every
+closed path at every thickness found **274 heavy bars, all open 2-point
+runs 45-1271pt long, and zero closed rectangular outlines**. Equipment
+dominance on the reference comes from **size**, not from stroke weight — a
+vessel reads as a vessel because it is drawn large, not because its outline
+is heavy ink.
+
+This mattered immediately, because the naive fix was a regression. §6's
+original vocabulary had `heavy: 3` used for *both* vessel outlines (18
+symbols) and process runs, with `medium: 2` for pipes. Assigning the
+measured 5.5 to `heavy` silently made 18 vessel outlines exactly as heavy
+as main process runs and **collapsed the hierarchy to a single weight**.
+The fix is a separate `equipment: 3` tier: equipment outlines keep the
+value they always had, and process runs take the measured 5.5, so the
+ordering is main run > equipment outline > branch > base. Found by grepping
+who consumed the tier rather than by trusting the edit — the same class of
+mistake §0b was written to correct.
+
+### §6 correction 2 — the sheet is A0, and the title block IS rotated
+
+§4.4 said "e.g. A3 landscape". The reference is **A0** (1189 × 841 mm;
+`pdfinfo` reports 2384 × 3370pt for the unrotated sheet). A3 was an example
+in the requirement, not a measurement, so **A3 remains the default** and A0
+is offered alongside A4 — but the sizes in `paperTemplate.ts` are now real
+sheet sizes, and the PDF's `/MediaBox` reports true millimetres, so a plot
+comes out 1:1.
+
+§6's claim that the title block is "rotated 90°" is **correct**, verified by
+rendering the region and reading it (text runs vertically; the sheet must be
+rotated to read it). Worth recording because the tempting "improvement" —
+drawing it upright — would have been a deviation from the reference. The
+rotated layout is kept.
+
+### What was built
+
+```
+item                                    module
+──────────────────────────────────────────────────────────────────────
+#3 battery-limit lines                  src/symbols/scope-boundary.tsx (69th symbol)
+   + the missing representation          src/edges/lineKind.ts (3-value LineType)
+   + boundary port kind                  src/symbols/types.ts
+#4 line-hop at crossings                src/edges/lineHops.ts + PipeEdge.tsx
+#5 paper template + export              src/export/{paperTemplate,svgExport,pdfExport}.ts
+                                        src/components/ExportPanel.tsx
+#6 nozzle-vs-line reconciliation        src/validation/nozzleSizeReconciliation.ts
+#8 line-weight hierarchy                src/symbols/style.ts (equipment tier)
+#9 (see below)                          decided, alignment deferred
+```
+
+**Item 3 could not have been built as written.** §7a described it as "add
+battery-limit lines", but `PipeEdgeData.lineType` was a two-value union
+(`'process' | 'signal'`) and no port kind could carry the convention, so
+there was nowhere to *store* a battery-limit line. `lineKind.ts` is now the
+single place that decides what a line is, resolving from declared type,
+port kind, and the branch-fitting rule in that order.
+
+**Item 5 is the largest single addition**, and the one §7a called "the
+difference between a tool you use and a tool a colleague can be handed."
+Both outputs are **real vector**, not screenshots:
+
+- **SVG** — built from the project **model**, not by serializing the DOM.
+  Serializing the canvas was rejected for concrete reasons: it would export
+  react-flow's viewport transform and current zoom (i.e. the editor, not the
+  drawing), and tags are HTML `<div>`s that do not survive serialization
+  into a standalone SVG at all. Symbols are invoked as their actual React
+  components, so one export path covers all 69 without per-symbol drawing
+  code that could drift from the canvas.
+- **PDF** — hand-written, no library. §4.5 hosts this as a static bundle on
+  a Raspberry Pi over Tailscale; a PDF library is the largest dependency the
+  project would take on, and PDF's vector subset is small enough (page box,
+  path operators, a standard-14 font) that emitting it directly is *less*
+  code. Courier is used precisely, not approximately: it is monospace, so
+  text widths are exact — which matters for centring tags and right-aligning
+  title-block values.
+
+**Item 6 encodes the engineering fact, not a rule of thumb.** A 4" line off
+a 3" nozzle is **legal** — a reducer at the vessel wall is ordinary. What
+§4.9.3 forbids is *silently* mismatched data, so the module reports a
+genuine conflict and stays quiet on a reducible difference instead of
+flagging normal practice.
+
+### Verified
+
+```
+suite                        result
+──────────────────────────────────────────────────────────────
+verify-export.cjs            18/18 PASS   (new)
+verify-connections.cjs        9/9  PASS
+verify-undo.cjs              19    PASS
+verify-tags.cjs              13    PASS
+verify-lists.cjs             12    PASS
+verify-nozzles.cjs            9    PASS
+verify-datasheets.cjs         7    PASS
+verify-numbering.cjs         14    PASS
+verify-port-outline.cjs           PASS
+verify-freeline.cjs               PASS
+verify-bug3.cjs                   PASS
+mutate-connections.cjs        8/8 mutations CAUGHT
+mutate-size-reader.cjs            PASS
+```
+
+The export gate asserts on the **downloaded bytes**, not on the in-page
+string that generated them — a Playwright download event gives the actual
+file — and checks that the SVG carries no raster payload and the PDF no
+`/Image` XObject. Both artifacts were additionally opened with independent
+tools: `pdfinfo` reports **A3 1190.55 × 841.89pt, 1 page**, `pdffonts` shows
+the two Courier faces, `pdfimages -list` is **empty**, and rendering the PDF
+and reading it confirms border, frame, legend, title block and notice are
+all present and correctly placed.
+
+Rendering the PDF also caught a defect invisible in the markup: a line
+number drawn at its own pipe's midpoint had **the pipe running through the
+text**. Both exporters now mask line labels with an opaque box — the
+drafting convention, where the number sits in a gap in the line.
+
+### Stated limitations (not silent)
+
+- **PDF symbols are drawn as their bounding box.** The PDF carries the
+  frame, line weights, labels, topology and title block exactly, but
+  equipment symbol interiors render as boxes. The **SVG** path has the React
+  components available and draws full geometry. So: hand a colleague the
+  PDF; use the SVG when the artifact must be a faithful plot. Recorded here
+  because an engineer comparing the two would otherwise conclude the PDF was
+  broken.
+- **Hops are not reproduced in either export.** The canvas breaks a line
+  over a heavier one at crossings; the exports draw crossings plain.
+  Deliberate: a half-correct hop pass would put breaks in different places
+  in the two views of the same drawing, which is worse than consistently
+  plain crossings. The ordering rule must be shared first.
+- **Rotation is preserved as information only** in the PDF (drawn as a
+  degree label inside the box), since the interior is a box anyway.
+
+### Item 9 — decided, not yet aligned
+
+§7a item 9 asked whether the instrument bubble matches the reference. §6
+claimed the reference has "no divider, loop number below/beside the circle
+(not inside it)". Rendering the reference's instrument clusters and reading
+them **contradicts that**: bubbles show **no divider** and the loop number
+**inside** the circle, which is what the implementation already does. So the
+implementation appears *right* and §6's note wrong — the opposite of what
+§7a assumed.
+
+This is recorded rather than acted on because the evidence is one vision
+pass on a rotated drawing and two follow-up crops that missed — they landed
+on a panel box and a sight glass, neither an instrument bubble, so the
+decisive comparison never actually ran. **Do not change the bubble
+convention on the strength of this note.** The next step is a crop centred
+on a confirmed circle-with-function-code; if it confirms the reading, §6's
+instrument note is what needs correcting, not the code.
 
 ## 1. Problem & Purpose
 

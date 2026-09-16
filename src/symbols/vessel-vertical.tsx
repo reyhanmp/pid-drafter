@@ -16,7 +16,7 @@ function VesselVerticalGeometry({ width, height }: { width: number; height: numb
             Z`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
     </svg>
   );

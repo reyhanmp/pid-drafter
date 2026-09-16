@@ -16,7 +16,7 @@ function StorageTankFloatingRoofGeometry({ width, height }: { width: number; hei
         height={height}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* floating roof deck */}
       <line x1={0} y1={deckY} x2={width} y2={deckY} stroke={STROKE} strokeWidth={LINE_WEIGHT.medium} />

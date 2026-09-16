@@ -31,7 +31,7 @@ function ReactorJacketedGeometry({ width, height }: { width: number; height: num
             Z`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* jacket outline: parallel offset arc/lines tracking the lower half of the shell */}
       <path

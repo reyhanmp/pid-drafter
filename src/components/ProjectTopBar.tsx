@@ -20,6 +20,7 @@ export default function ProjectTopBar({
   onLoad,
   onOpenLists,
   onOpenNumbering,
+  onOpenExport,
   canUndo,
   canRedo,
   undoDepth,
@@ -33,6 +34,7 @@ export default function ProjectTopBar({
   onLoad: (project: Project) => void;
   onOpenLists: () => void;
   onOpenNumbering: () => void;
+  onOpenExport: () => void;
   canUndo: boolean;
   canRedo: boolean;
   undoDepth: number;
@@ -142,6 +144,13 @@ export default function ProjectTopBar({
         title="Configure the tag and line-number scheme for this project"
       >
         Numbering
+      </button>
+      <button
+        onClick={onOpenExport}
+        data-testid="open-export-btn"
+        title="Export this sheet into a titled drawing sheet — vector PDF or SVG"
+      >
+        Export
       </button>
       <button onClick={handleSave} data-testid="save-json-btn" title="Download the whole project as JSON">
         Save JSON

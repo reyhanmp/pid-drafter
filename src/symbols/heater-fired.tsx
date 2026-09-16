@@ -22,7 +22,7 @@ function HeaterFiredGeometry({ width, height }: { width: number; height: number 
         height={height - boxTop}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* process coil */}
       <line x1={width * 0.1} y1={coilY} x2={width * 0.9} y2={coilY} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />

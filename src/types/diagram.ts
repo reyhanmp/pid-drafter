@@ -4,6 +4,9 @@
  * on plain data (see src/validation/).
  */
 import type { SymbolPort } from '../symbols/types';
+import type { LineType } from '../edges/lineKind';
+
+export type { LineType };
 
 export interface EquipmentNodeData {
   /** Symbol registry key, e.g. "vessel-vertical". */
@@ -95,8 +98,20 @@ export interface ResolvedPort extends SymbolPort {
 
 /** A pipe/signal-line connection between two declared ports. */
 export interface PipeEdgeData {
-  /** 'process' (solid) or 'signal' (dashed) — mirrors ISA line convention. */
-  lineType: 'process' | 'signal';
+  /**
+   * What the user declared this line to be. See src/edges/lineKind.ts for the
+   * decision that turns this into an actual stroke — and for why `main` vs
+   * `branch` is deliberately NOT in here.
+   *
+   *   'process'  — piping (solid)
+   *   'signal'   — instrument/pneumatic signal (thin dashed)
+   *   'boundary' — battery-limit / scope boundary (thin dash-dot)
+   *
+   * Importing the type from lineKind.ts rather than re-declaring it keeps a
+   * second union from existing that could accept a value the decision module
+   * cannot interpret.
+   */
+  lineType: LineType;
   /**
    * FREE LINE (explicit user decision) — a line drawn by releasing the
    * drag in empty space, attached to no nozzle at either end.

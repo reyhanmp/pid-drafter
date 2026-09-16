@@ -36,7 +36,7 @@ function ColumnPackedGeometry({ width, height }: { width: number; height: number
             Z`}
         fill={FILL_NONE}
         stroke={STROKE}
-        strokeWidth={LINE_WEIGHT.heavy}
+        strokeWidth={LINE_WEIGHT.equipment}
       />
       {/* packing zone boundary lines (thin, marks where packed bed sits) */}
       <line x1={packX1} y1={packZoneTop} x2={packX2} y2={packZoneTop} stroke={STROKE} strokeWidth={LINE_WEIGHT.thin} />
