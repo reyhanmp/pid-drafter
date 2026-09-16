@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { assertServerServesRepo } = require('./preflight.cjs');
 
 const REPO = path.resolve(__dirname, '..');
 const URL = process.argv[2] || 'http://127.0.0.1:5199/';
@@ -161,6 +162,9 @@ function runGate() {
 (async () => {
   const failures = [];
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Fail fast and unambiguously if the server is not serving this repo.
+  await assertServerServesRepo(URL, REPO);
 
   for (const m of MUTATIONS) {
     console.log(`\n--- MUTATION: ${m.name}`);

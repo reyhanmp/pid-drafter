@@ -15,6 +15,7 @@ const { withFixture, cleanup } = require('./fixture-computed-size.cjs');
  */
 (async () => {
   const { execFileSync } = require('child_process');
+  const { assertServerServesRepo } = require('./preflight.cjs');
   const URL = process.argv[2] || 'http://127.0.0.1:5199/';
 
   function run() {
@@ -29,6 +30,11 @@ const { withFixture, cleanup } = require('./fixture-computed-size.cjs');
       return { code: e.status ?? 1, out: `${e.stdout || ''}${e.stderr || ''}` };
     }
   }
+
+  // Fail fast and unambiguously if the server is not serving this repo. Without
+  // this the suite edits a fixture the browser never loads and reports the gate
+  // as toothless — a false verdict about the gate rather than about the setup.
+  await assertServerServesRepo(URL);
 
   let failed = false;
   try {
