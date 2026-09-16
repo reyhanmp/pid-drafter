@@ -1239,22 +1239,29 @@ All are **unbuilt**, verified against source, not inferred from absence.
    3-port branch fitting whose declared run ports are the ONE place in the
    library where more than one pipe may attach. Branching is therefore a
    visible fitting in the drawing, not an invisible property of a port.
-3. **Battery-limit / scope-boundary lines do not exist** (§6 tier 5). The
-   reference drawing uses them; `lineType` has no slot for them. See §6.
-4. **No line-hop at crossings.** Real P&IDs break one line over another where
-   they cross without connecting; every crossing in this tool looks like an
-   unmarked intersection. With more than a few runs on a sheet this becomes
-   genuinely ambiguous — a reader cannot tell a crossing from a connection.
-5. **Paper template + export (§4.4) — nothing exists.** No border, title
-   block, revision block or legend box; no PDF, and (corrected above) no SVG
-   either. This is the difference between a tool Reyhan uses and a tool whose
-   output a colleague can be handed, so it is the highest-value remaining
-   item even though it comes after the correctness items.
-6. **Nozzle-vs-line reconciliation** (§4.9.3 correction). A 4" line leaving a
-   3" nozzle is legal and silent. This is the strongest "live engineering"
-   material available — it turns the validity engine into something that
-   knows *process* rules, not just graph rules — and it should be built on
-   top of a sound connectivity model, not before it.
+3. ~~**Battery-limit / scope-boundary lines do not exist** (§6 tier 5).~~ **RESOLVED
+   2026-09-16 — see §0g.** A 69th symbol (`scope-boundary`) declares its ports
+   `kind: 'boundary'`, and `LineType` grew a third value. Worth recording that
+   this item was **not buildable as written**: `lineType` was a two-value union,
+   so there was nowhere to *store* a battery-limit line. The fix was the
+   representation, not the drawing — `src/edges/lineKind.ts` is now the single
+   place that decides what a line is.
+4. ~~**No line-hop at crossings.**~~ **RESOLVED 2026-09-16 — see §0g.**
+   `src/edges/lineHops.ts` inserts a break where a run crosses a heavier one.
+   The ordering rule is shared by canvas and export rather than reimplemented,
+   so the two views cannot disagree. Not reproduced in the exports — stated in
+   §0g rather than left as a silent difference.
+5. ~~**Paper template + export (§4.4) — nothing exists.**~~ **RESOLVED
+   2026-09-16 — see §0g.** Border, double-line frame, title block, revision
+   block, legend box and confidentiality notice; vector **PDF** and vector
+   **SVG**. PDF is hand-written with no library (this ships as a static bundle
+   on a Pi; PDF's vector subset is small enough that a library would be the
+   larger dependency). Export is blocked by §4.1 hard errors and unaffected by
+   soft warnings.
+6. ~~**Nozzle-vs-line reconciliation** (§4.9.3 correction).~~ **RESOLVED
+   2026-09-16 — see §0g.** `src/validation/nozzleSizeReconciliation.ts`. Encodes
+   the engineering fact rather than a rule of thumb: a 4" line off a 3" nozzle is
+   legal, and only a genuine conflict is reported.
 7. ~~**Undo/redo.**~~ **RESOLVED 2026-09-13 (`cdccd2c`), now §4.10.** The
    deferral was re-taken and undo/redo is built and gated
    (`scripts/verify-undo.cjs`, 19 checks, driven by real mouse input). Three
@@ -1266,12 +1273,26 @@ All are **unbuilt**, verified against source, not inferred from absence.
    keyboard shortcuts yet, and all evidence is from the dev build — the
    StrictMode double-invoke that made the third bug nondeterministic is absent
    from prod, so that path still deserves its own run.
-8. **Line weight hierarchy partially implemented** (§6). Main-run vs branch
-   piping distinction and battery-limit weight are absent; every process run
-   draws at one weight.
-9. **Bubble convention differs from the reference** (§6) — divided bubble with
-   the loop number inside, versus the reference's undivided bubble with the
-   loop number outside. Either align it or record it as a deliberate choice.
+8. ~~**Line weight hierarchy partially implemented** (§6).~~ **RESOLVED
+   2026-09-16 — see §0g.** Main / branch / signal / battery-limit are now
+   distinct and asserted on rendered stroke style (`verify-linekind.cjs`).
+   Resolving this required **correcting §6**: heavy weight marks process RUNS,
+   not vessel outlines (measurement found 274 heavy bars, all open runs, and
+   zero closed outlines at any thickness). The naive implementation was a
+   regression — 18 equipment symbols shared the `heavy` tier for their outlines,
+   so assigning the measured 5.5 to it collapsed the hierarchy to one weight.
+   A separate `equipment` tier holds those symbols' original value.
+9. **Bubble convention differs from the reference? (§6) — evidence now points
+   the other way; not acted on.** §6 claims the reference has "no divider, loop
+   number below/beside the circle (not inside it)". Rendering the reference's
+   instrument clusters and reading them showed **no divider** and the loop number
+   **inside** the circle — i.e. the implementation appears to *match* the
+   reference, and §6's note is what is wrong. **Deliberately left unresolved:**
+   that reading is one vision pass on a rotated drawing, and the two follow-up
+   crops intended to confirm it landed on a panel box and a sight glass rather
+   than on an instrument bubble, so the decisive comparison never ran. The next
+   step is a crop centred on a confirmed circle-with-function-code. Do not change
+   the bubble convention on the strength of the current evidence — see §0g.
 
 ---
 
