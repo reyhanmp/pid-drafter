@@ -442,20 +442,58 @@ drafting convention, where the number sits in a gap in the line.
 
 ### Stated limitations (not silent)
 
-- **PDF symbols are drawn as their bounding box.** The PDF carries the
-  frame, line weights, labels, topology and title block exactly, but
-  equipment symbol interiors render as boxes. The **SVG** path has the React
-  components available and draws full geometry. So: hand a colleague the
-  PDF; use the SVG when the artifact must be a faithful plot. Recorded here
-  because an engineer comparing the two would otherwise conclude the PDF was
-  broken.
 - **Hops are not reproduced in either export.** The canvas breaks a line
   over a heavier one at crossings; the exports draw crossings plain.
   Deliberate: a half-correct hop pass would put breaks in different places
   in the two views of the same drawing, which is worse than consistently
   plain crossings. The ordering rule must be shared first.
-- **Rotation is preserved as information only** in the PDF (drawn as a
-  degree label inside the box), since the interior is a box anyway.
+- **Converter scope is a measured subset of SVG.** `src/export/pdfVector.ts`
+  handles the elements the 69 symbols actually emit (measured, not assumed:
+  `line`, `path`, `rect`, `circle`, `ellipse`, `polyline`, `polygon`, `g`,
+  `text`) and the path commands they use (M/L/H/V/C/S/Q/T/A/Z). Anything
+  outside that subset is skipped rather than mis-drawn — which would be worse
+  than the boxes it replaced — so `verify-pdf-vector.cjs` serializes the whole
+  library and **fails** if a symbol introduces an unsupported element. The
+  subset is a gate, not a hope.
+- **PDF rounded-rectangle corners are square.** `rx` is measured only on
+  `<ellipse>` radii in this library, so no symbol currently draws a rounded
+  corner; if one did, it would be drawn square rather than wrong.
+
+**Resolution of the former box limitation.** The PDF used to render every
+equipment symbol as its bounding box, with the symbol's text re-derived from
+the model by hand-written regexes. Both halves were the same mistake: the SVG
+export already serializes each symbol's true geometry by invoking its React
+component, so a second derivation was a copy free to drift — and it had. The
+PDF now consumes the same serialized geometry the SVG does, so a symbol's
+interior cannot differ between the two artifacts.
+
+That switch removed the boxes and, in doing so, exposed three defects that the
+box rendering had been hiding:
+
+- **Exporters passed no label to the symbol geometry.** The canvas passes
+  `__resolvedLabel ?? tag`; the exporters passed nothing, so an exported
+  instrument bubble printed its symbol's hardcoded fallback code (every local
+  indicator drawing `PI` regardless of tag) and an off-page connector printed
+  `REF`. The SVG was wrong here too — it was not only the PDF.
+- **Symbol text was vertically mirrored in the PDF.** Positioning glyphs with
+  the full page matrix carried the SVG→PDF y-flip into the text matrix
+  (`d = -1`), so a bubble read "IIC" over "IOI" instead of "TIC" over "101"
+  and "PI" rendered as "ЬI". Readable as letters, which is why it looked like
+  a font or encoding problem rather than a flip. Notably it did **not** affect
+  the sheet furniture: `drawText` positions with `Td` and never touches `Tm`,
+  so the title block and notices were always upright.
+- **An em dash in the confidentiality notice became a control byte.**
+  `latin1Bytes` masked code points with `& 0xff`, turning U+2014 into 0x14.
+  WinAnsi-mapped characters are now translated properly.
+
+`verify-pdf-vector.cjs` exists because of how the box limitation survived: the
+export suite asserted the PDF was a *valid vector file*, and a file full of
+rectangles is a valid vector file. The new suite asserts the property that was
+actually wrong — that curves and stroked paths reach the content stream, that
+the PDF's curve count is consistent with the SVG's curved elements, and that
+bubble function codes reach **both** artifacts — and it was validated by
+mutation (restoring the box rendering fails it 16/18; dropping the label fails
+it 16/18).
 
 ### Item 9 — decided, not yet aligned
 
@@ -1254,10 +1292,12 @@ All are **unbuilt**, verified against source, not inferred from absence.
 5. ~~**Paper template + export (§4.4) — nothing exists.**~~ **RESOLVED
    2026-09-16 — see §0g.** Border, double-line frame, title block, revision
    block, legend box and confidentiality notice; vector **PDF** and vector
-   **SVG**. PDF is hand-written with no library (this ships as a static bundle
-   on a Pi; PDF's vector subset is small enough that a library would be the
-   larger dependency). Export is blocked by §4.1 hard errors and unaffected by
-   soft warnings.
+   **SVG**, and every symbol is drawn from its real geometry in both. PDF is
+   hand-written with no library (this ships as a static bundle on a Pi; PDF's
+   vector subset is small enough that a library would be the larger dependency);
+   it converts the same serialized SVG geometry the SVG export emits, so the two
+   artifacts cannot describe a symbol differently. Export is blocked by §4.1
+   hard errors and unaffected by soft warnings.
 6. ~~**Nozzle-vs-line reconciliation** (§4.9.3 correction).~~ **RESOLVED
    2026-09-16 — see §0g.** `src/validation/nozzleSizeReconciliation.ts`. Encodes
    the engineering fact rather than a rule of thumb: a 4" line off a 3" nozzle is

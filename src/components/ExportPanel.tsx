@@ -247,7 +247,7 @@ export default function ExportPanel({
                 onClick={handleSvg}
                 disabled={blockingErrors > 0}
                 data-testid="export-svg-btn"
-                title="Vector SVG in the paper template — full symbol geometry"
+                title="Vector SVG in the paper template"
               >
                 Export SVG
               </button>
@@ -256,9 +256,9 @@ export default function ExportPanel({
               </button>
             </div>
             <div className="numbering-hint">
-              Both outputs are vector, not screenshots. The SVG carries every symbol&apos;s full geometry; the PDF draws
-              the frame, line weights, labels and title block exactly and represents symbols by their box — stated in
-              PRD §0g.
+              Both outputs are vector, not screenshots — every line, symbol stroke, label and sheet block is real
+              drawing geometry. Both exports render symbols from the same serialized geometry, so the two artifacts
+              cannot describe a symbol differently. Remaining differences between them are listed in PRD §0g.
             </div>
           </div>
 

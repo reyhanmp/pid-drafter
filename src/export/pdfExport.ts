@@ -36,69 +36,11 @@ import { buildOrthogonalPath } from '../edges/orthogonalRouting';
 import { LINE_DASH } from '../symbols/style';
 import { resolveLineKind, strokeForLineKind } from '../edges/lineKind';
 import { paperTemplateLayout, frameGapUnits, SHEET_SIZES, type TitleBlockFields } from './paperTemplate';
-import type { ExportEdge, ExportNode, SheetSvgOptions } from './svgExport';
+import { svgToPdfOps, compose as composeLocal, type Matrix } from './pdfVector';
+import { symbolMarkup, type ExportEdge, type ExportNode, type SheetSvgOptions } from './svgExport';
 
 /** 96 SVG units per inch is the canvas convention; PDF units are 72/inch. */
 const PT_PER_UNIT = 72 / 96;
-
-/**
- * The symbol geometry's raster/text detail, as PDF text runs.
- *
- * Symbols draw a handful of <text> elements (instrument bubble letters, the
- * off-page label, the battery-limit words). Recovering those from the React
- * component's output would mean parsing SVG, so instead the TEXT is re-derived
- * from the model — the symbol's own label and the node's tag — which is where
- * the text comes from in the first place. A symbol whose text is purely
- * decorative (none currently) would be the only thing lost.
- */
-function textRunsForNode(node: ExportNode): Array<{ x: number; y: number; size: number; text: string; anchor: 'middle' | 'start' }> {
-  const d = node.data;
-  const out: Array<{ x: number; y: number; size: number; text: string; anchor: 'middle' | 'start' }> = [];
-  const symbol = symbolsByKind[d.kind];
-  if (!symbol) return out;
-
-  // Tag under the symbol, matching EquipmentNode (11px monospace, centred).
-  if (d.tag) {
-    const text = d.loopNumber ? `${d.tag} / ${d.loopNumber}` : d.tag;
-    out.push({ x: node.position.x + d.width / 2, y: node.position.y + d.height + 14, size: 11, text, anchor: 'middle' });
-  }
-
-  // Instrument bubbles draw their own function code + loop number inside the
-  // circle (isaBubble.tsx). Reproduce that so an exported instrument reads the
-  // same as the on-canvas one — this is the net fix §6 records, and losing it
-  // in export would silently revert to the old "hardcoded FIC" behaviour.
-  if (symbol.category === 'Instruments') {
-    const cx = node.position.x + d.width / 2;
-    const cy = node.position.y + d.height / 2;
-    const tag = (d.tag ?? '').trim();
-    const letters = (tag.match(/^[A-Za-z]+/)?.[0] ?? '').toUpperCase();
-    const loop = d.loopNumber ?? tag.match(/-?\s*([\d.]+[A-Za-z]?)\s*$/)?.[1] ?? '';
-    if (letters) out.push({ x: cx, y: cy - 2, size: 9, text: letters, anchor: 'middle' });
-    if (loop) out.push({ x: cx, y: cy + 9, size: 8, text: loop, anchor: 'middle' });
-  }
-
-  if (d.kind === 'offpage-connector' && d.offpageTargetTag) {
-    out.push({
-      x: node.position.x + d.width / 2,
-      y: node.position.y + d.height / 2 + 3,
-      size: 8,
-      text: `TO ${d.offpageTargetTag}`,
-      anchor: 'middle',
-    });
-  }
-
-  if (d.kind === 'scope-boundary') {
-    out.push({
-      x: node.position.x + d.width / 2,
-      y: node.position.y + d.height / 2 - 4,
-      size: 6,
-      text: 'BATTERY LIMIT',
-      anchor: 'middle',
-    });
-  }
-
-  return out;
-}
 
 /**
  * Latin-1 string to bytes, browser-safe.
@@ -111,9 +53,35 @@ function textRunsForNode(node: ExportNode): Array<{ x: number; y: number; size: 
  * So a direct char-code copy is exact, with a mask to keep a stray character
  * from corrupting the file rather than silently emitting a multi-byte value.
  */
+/**
+ * Characters that PDF's WinAnsiEncoding maps to a single byte, but which do not
+ * share Latin-1's code point. Written as an explicit table because the
+ * alternative — masking the code point with `& 0xff` — silently turns an
+ * em dash (U+2014) into the control byte 0x14, which is what the
+ * confidentiality notice was doing: the exported PDF showed a stray glyph where
+ * the notice has a dash. That is a real defect a reader would see, not a
+ * theoretical one, so the characters the sheet furniture actually uses are
+ * mapped properly and anything unmapped falls back visibly.
+ */
+const WINANSI: Record<string, number> = {
+  '\u2014': 0x97, // em dash
+  '\u2013': 0x96, // en dash
+  '\u2018': 0x91,
+  '\u2019': 0x92,
+  '\u201c': 0x93,
+  '\u201d': 0x94,
+  '\u2022': 0x95, // bullet
+  '\u2026': 0x85, // ellipsis
+  '\u00a0': 0x20, // non-breaking space has no WinAnsi byte; a space reads the same
+};
+
 function latin1Bytes(text: string): Uint8Array {
   const out = new Uint8Array(text.length);
-  for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i) & 0xff;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const mapped = WINANSI[ch];
+    out[i] = mapped !== undefined ? mapped : text.charCodeAt(i) & 0xff;
+  }
   return out;
 }
 
@@ -326,30 +294,79 @@ export function buildSheetPdf(nodes: ExportNode[], edges: ExportEdge[], opts: Sh
   }
 
   /**
-   * Symbols. Their vector geometry is drawn by the SVG export, which has the
-   * React component available; here the symbol is represented by its bounding
-   * box outline plus its own text runs. This is a STATED LIMITATION of the PDF
-   * path and is recorded in PRD §0g: the PDF renders the drawing's topology,
-   * labels, line weights and sheet furniture exactly, while equipment symbol
-   * interiors are drawn as their box. The SVG export (which does carry the full
-   * symbol geometry) is the correct choice when the artifact must be a faithful
-   * plot; the PDF exists so a colleague can be handed a printable file.
+   * Symbols, drawn from their REAL geometry.
    *
-   * Recording it rather than quietly shipping a PDF that looks like boxes: an
-   * engineer comparing the two would otherwise conclude the PDF was broken.
+   * This used to draw each symbol as its bounding box with the text re-derived
+   * from the model. Both halves were the same mistake: the SVG export already
+   * serializes each symbol's true geometry by invoking its React component, so
+   * a second, hand-written derivation of the same information (including
+   * instrument-bubble letters parsed from `data.tag` by a regex that had to
+   * keep matching `splitTagForBubble`) was a copy free to drift. The PDF now
+   * consumes the same serialized geometry the SVG does, so a symbol's interior
+   * cannot differ between the two artifacts.
+   *
+   * The symbol is rendered in its own local coordinate space (0,0 at the node's
+   * top-left) and the node's placement — position, then rotation about the box
+   * centre, matching the canvas — is folded into the matrix. `base` also carries
+   * the page's y-flip, so the emitted coordinates are absolute page points.
    */
   for (const node of nodes) {
-    const p = tx({ x: node.position.x, y: node.position.y });
-    const w = node.data.width * fitScale;
-    const h = node.data.height * fitScale;
-    drawRect(c, p.x, p.y, w, h, 1.25, pageH);
-    if (normalizeRotation(node.data.rotation) !== 0) {
-      // Rotation is meaningful information even when the interior is a box.
-      drawText(c, p.x + w / 2, p.y + h / 2, 7, `${normalizeRotation(node.data.rotation)}°`, 'middle', pageH);
+    const d = node.data;
+    const markup = symbolMarkup(d.kind, d.width, d.height, d.__resolvedLabel ?? d.tag);
+    if (!markup) continue;
+
+    const p0 = tx({ x: node.position.x, y: node.position.y });
+    const w = d.width * fitScale;
+    const h = d.height * fitScale;
+    const rotation = normalizeRotation(d.rotation);
+
+    // Placement in SVG units, then the page transform: scale the symbol into
+    // its fitted box, put it at the node's fitted position, and flip y for PDF.
+    let placement: Matrix = { a: fitScale, b: 0, c: 0, d: fitScale, e: p0.x, f: p0.y };
+    if (rotation !== 0) {
+      const rad = (rotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const cx = node.position.x + d.width / 2;
+      const cy = node.position.y + d.height / 2;
+      // Rotate about the box centre, as the canvas does: T(c) R(-rot) T(-c).
+      // The sign is negative because SVG's y is flipped relative to the maths
+      // convention, and this matrix lives in SVG's frame.
+      const about: Matrix = {
+        a: 1, b: 0, c: 0, d: 1, e: p0.x + (cx - node.position.x) * fitScale, f: p0.y + (cy - node.position.y) * fitScale,
+      };
+      const rot: Matrix = { a: cos, b: -sin, c: sin, d: cos, e: 0, f: 0 };
+      const back: Matrix = { a: 1, b: 0, c: 0, d: 1, e: -(cx - node.position.x) * fitScale, f: -(cy - node.position.y) * fitScale };
+      const local: Matrix = { a: fitScale, b: 0, c: 0, d: fitScale, e: 0, f: 0 };
+      placement = composeLocal(about, composeLocal(rot, composeLocal(back, local)));
     }
-    for (const run of textRunsForNode(node)) {
-      const q = tx({ x: run.x, y: run.y });
-      drawText(c, q.x, q.y, run.size * fitScale, run.text, run.anchor, pageH);
+
+    // Convert SVG space to PDF space: y flips about the page height, and units
+    // scale from 96/inch to 72/inch.
+    const base: Matrix = {
+      a: PT_PER_UNIT, b: 0, c: 0, d: -PT_PER_UNIT, e: 0, f: pageH,
+    };
+    const full = composeLocal(base, placement);
+    c.lines.push(...svgToPdfOps(markup, full));
+    void w;
+    void h;
+
+    // The node's own tag label, drawn below the symbol exactly as the canvas
+    // and the SVG export place it (EquipmentNode: `bottom: -18`, 11px monospace).
+    // This stays here rather than coming from the symbol markup because on the
+    // canvas it is an HTML div outside the SVG — it is node furniture, not
+    // symbol geometry.
+    const tagText = d.loopNumber ? `${d.tag} / ${d.loopNumber}` : d.tag;
+    if (tagText) {
+      const q = tx({ x: node.position.x + d.width / 2, y: node.position.y + d.height + 14 });
+      drawText(c, q.x, q.y, 11 * fitScale, tagText, 'middle', pageH);
+    }
+
+    // Off-page connectors carry a resolved cross-sheet reference that lives on
+    // the node rather than being derivable from the symbol's static geometry.
+    if (d.kind === 'offpage-connector' && d.offpageTargetTag) {
+      const q = tx({ x: node.position.x + d.width / 2, y: node.position.y + d.height / 2 + 3 });
+      drawText(c, q.x, q.y, 8 * fitScale, `TO ${d.offpageTargetTag}`, 'middle', pageH);
     }
   }
 

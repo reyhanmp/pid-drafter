@@ -105,7 +105,7 @@ const MONO = 'monospace';
  * no react-flow classes. That is what lets one export path cover all 69 symbols
  * without a per-symbol drawing routine that could drift from the on-canvas one.
  */
-function symbolMarkup(kind: string, width: number, height: number, label?: string): string {
+export function symbolMarkup(kind: string, width: number, height: number, label?: string): string {
   const symbol = symbolsByKind[kind];
   if (!symbol) return '';
   const Geometry = symbol.Geometry as unknown as (props: Record<string, unknown>) => unknown;
@@ -126,7 +126,15 @@ function nodeMarkup(node: ExportNode): string {
   const width = d.width;
   const height = d.height;
   const rotation = normalizeRotation(d.rotation);
-  const inner = symbolMarkup(d.kind, width, height);
+  // The canvas passes `__resolvedLabel ?? tag` to the geometry
+  // (EquipmentNode.tsx): `__resolvedLabel` is the resolved cross-sheet
+  // reference an off-page connector needs, and `tag` is what an ISA-5.1 bubble
+  // reads its function code from. Passing neither — which this did — meant an
+  // exported instrument bubble fell back to its symbol's hardcoded default code
+  // and an off-page connector printed "REF", so the SVG disagreed with both the
+  // canvas and the PDF for exactly the symbols that carry text.
+  const resolved = (d.__resolvedLabel as string | undefined) ?? d.tag;
+  const inner = symbolMarkup(d.kind, width, height, resolved);
   if (!inner) return '';
   // Strip the symbol's own outer <svg> wrapper: nesting a sized <svg> inside a
   // positioned <g> would re-apply its own viewBox and reflow the geometry. The

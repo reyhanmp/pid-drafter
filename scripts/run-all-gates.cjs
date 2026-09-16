@@ -27,6 +27,7 @@ const SUITES = [
   ['verify-freeline.cjs', ''],
   ['verify-bug3.cjs', ''],
   ['verify-export.cjs', 'EXPORT_PASS'],
+  ['verify-pdf-vector.cjs', 'PDFVECTOR_PASS'],
   ['verify-linekind.cjs', 'LINEKIND_PASS'],
   ['mutate-connections.cjs', 'CONNECTIONS_MUTATION_PASS'],
   ['mutate-size-reader.cjs', 'SIZE_READER_MUTATION_PASS'],
