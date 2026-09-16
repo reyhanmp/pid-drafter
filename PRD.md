@@ -1000,7 +1000,13 @@ Re-taken from §8's deferral; see §8 for why the premise expired.
 Every functional requirement above is backed by an executable gate. A feature
 whose gate does not exist is not done — that rule is why the numbering feature
 and undo/redo were treated as unbuilt until their suites existed. Run the dev
-server, then:
+Run the dev server, then:
+
+```
+node scripts/run-all-gates.cjs http://127.0.0.1:5199/   # every suite, one summary line each
+```
+
+Individually:
 
 ```
 node scripts/verify-port-outline.cjs http://127.0.0.1:5199/   # 4.2  symbol ports on drawn ink
@@ -1013,6 +1019,9 @@ node scripts/verify-undo.cjs         http://127.0.0.1:5199/   # 4.10 undo / redo
 node scripts/verify-freeline.cjs     http://127.0.0.1:5199/   # 4.1  free-line carve-out
 node scripts/verify-bug3.cjs         http://127.0.0.1:5199/   # 4.3  connection preview router
 node scripts/verify-connections.cjs  http://127.0.0.1:5199/   # 4.12 one pipe per nozzle + branch fittings
+node scripts/verify-export.cjs       http://127.0.0.1:5199/   # 4.4  paper template + vector export
+node scripts/verify-pdf-vector.cjs   http://127.0.0.1:5199/   # 4.4  PDF draws real symbol geometry
+node scripts/verify-linekind.cjs     http://127.0.0.1:5199/   # 4.5  line kinds and weights
 ```
 
 Each prints a `*_PASS` line and exits 0. They are driven by real browser input
@@ -1025,6 +1034,28 @@ mutation-tested; the mutations live in the repo so they can be re-run:
 node scripts/mutate-connections.cjs  http://127.0.0.1:5199/   # 8 deliberate defects, 8 must be caught
 node scripts/mutate-size-reader.cjs  http://127.0.0.1:5199/   # the port-outline gate must refuse to guess
 ```
+
+**Run every suite against the repo it is meant to test.** These suites take a
+dev-server URL so a frozen commit can be verified in its own clone, but
+`harness.cjs` used to navigate to its own hardcoded `5199` and ignore the
+argument — so a run in a clone mutated the clone's files while the browser
+talked to the worktree, and the mutation suite reported all 8 mutations "NOT
+CAUGHT" with exit 1. A false accusation that the connection gate had lost all
+its teeth, against a gate that was correct and an app the browser never saw
+mutated. `freshPage` now routes through `resolveUrl()` (explicit arg →
+`process.argv[2]` → default), and both mutation runners call
+`scripts/preflight.cjs` first: it writes a sentinel module carrying a random
+token into the repo's own `src/`, fetches it from the dev server, requires the
+token back, and exits **2** if the server is serving a different checkout —
+distinct from the 1 a surviving mutation reports, because "the setup is wrong"
+and "the code is wrong" need different responses. A mutation run's failure mode
+is otherwise indistinguishable from its success: a green gate looks the same
+whether the app was mutated or never touched.
+
+Note also that two clones sharing a symlinked `node_modules` also share Vite's
+dependency cache (`node_modules/.vite`) while their dev servers serve different
+source trees. The preflight makes that mixup loud, but a clone used for
+verification should install its own dependencies.
 
 Four further rules the gates encode:
 
