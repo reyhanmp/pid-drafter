@@ -1,20 +1,27 @@
 import type { ValidationError } from '../validation/validateDiagram';
 import type { SpecWarning } from '../validation/specValidation';
 import type { TagWarning } from '../validation/tagSemantics';
+import type { NozzleLineWarning } from '../validation/nozzleReconciliation';
 
 /**
  * Live validity panel — shows current diagram errors as they exist
  * (duplicate tags, pipes not seated on a declared port), updating on
  * every edit rather than requiring an on-demand check.
  *
- * Three tiers, deliberately separated:
+ * Four tiers, deliberately separated:
  *
  *   1. ERRORS (badge, blocks export) — things that break the drawing or its
  *      downstream consumers: duplicate tags, pipes floating off a nozzle,
  *      unresolvable off-sheet references, instrument tags with no loop number.
  *   2. SPEC COMPATIBILITY (soft) — material/rating disagreement between a line
  *      and the equipment on it.
- *   3. TAG & LINE SEMANTICS (soft) — whether tags read as valid ISA-5.1 and
+ *   3. NOZZLE ↔ LINE (soft) — what the pipe says about itself versus the nozzle
+ *      it is bolted to. Split by severity on purpose: a line larger than its
+ *      nozzle is a NOTICE (a reducer at the vessel wall is legal and common,
+ *      so the tool says "confirm this" rather than "this is wrong"), while a
+ *      nozzle flange rated below the line's own pressure class is a WARNING.
+ *      Neither ever blocks export.
+ *   4. TAG & LINE SEMANTICS (soft) — whether tags read as valid ISA-5.1 and
  *      whether line numbers parse. Soft because house standards legitimately
  *      extend the standards: the reference drawing (§6) uses ZSL/ZSH/ZI/HS/AV,
  *      which ISA-5.1 does not define, and a tool that refused those drawings
@@ -24,10 +31,12 @@ export default function ValidationPanel({
   errors,
   specWarnings = [],
   tagWarnings = [],
+  nozzleWarnings = [],
 }: {
   errors: ValidationError[];
   specWarnings?: SpecWarning[];
   tagWarnings?: TagWarning[];
+  nozzleWarnings?: NozzleLineWarning[];
 }) {
   return (
     <section className="validation-panel" aria-label="Diagram validity">
@@ -75,6 +84,36 @@ export default function ValidationPanel({
           <ul className="validation-list validation-list-warn">
             {specWarnings.map((w, i) => (
               <li key={`${w.kind}-${i}`} className="validation-item validation-item-warn" data-testid="spec-warning">
+                {w.message}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="validation-subsection" data-testid="nozzle-warnings-section">
+        <div className="validation-subheader">
+          Nozzle &amp; Line
+          <span className={`validation-badge ${nozzleWarnings.length > 0 ? 'warn' : 'ok'}`}>
+            {nozzleWarnings.length === 0 ? 'OK' : `${nozzleWarnings.length} warning${nozzleWarnings.length === 1 ? '' : 's'}`}
+          </span>
+        </div>
+        {nozzleWarnings.length === 0 ? (
+          <div className="validation-empty">
+            Every line is consistent with the nozzle it lands on. These are soft warnings — never export-blocking.
+          </div>
+        ) : (
+          <ul className="validation-list validation-list-warn">
+            {nozzleWarnings.map((w, i) => (
+              <li
+                key={`${w.kind}-${i}`}
+                className="validation-item validation-item-warn"
+                data-testid="nozzle-warning"
+                data-severity={w.severity}
+              >
+                <span className="validation-item-locator">
+                  [{w.severity === 'notice' ? 'notice' : 'warning'}]{' '}
+                </span>
                 {w.message}
               </li>
             ))}

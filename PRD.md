@@ -2,8 +2,79 @@
 
 **Status:** Draft for review (revised with industry-research pass)
 **Author:** Hermes (for Reyhan Prajesa)
-**Date:** 2026-09-08, revised 2026-09-12, 2026-09-13, 2026-09-14 (five passes)
+**Date:** 2026-09-08, revised 2026-09-12, 2026-09-13, 2026-09-14, 2026-09-24 (six passes)
 **Supersedes:** v1 MVP at `~/projects/pid-drafter/` (to be archived, not iterated on)
+
+---
+
+## 0g. Revision note (2026-09-24) — nozzle ↔ line reconciliation
+
+Closes §7a item 6, the last of the "live engineering" items — the one that
+turns the validity engine from a graph checker into something that knows a
+process rule. One commit.
+
+**1. The engine now reads the nozzle, not just the line.** §4.9.3 corrected
+this PRD for claiming nozzle size "feeds the existing spec check": it did not,
+and §7a item 6 recorded the gap as unbuilt. `specValidation.ts` compares a
+line's spec against the *component's declared data-sheet fields*; nothing
+compared what the line says about itself against the *nozzle* it is bolted to.
+`src/validation/nozzleReconciliation.ts` does exactly that, at both ends.
+
+**2. The legal case is a NOTICE, not a defect — and that distinction is the
+whole design.** A reducer at the vessel wall means a 4" line can leave a 3"
+nozzle. That is real, common and correct, and the vessel designer sizes the
+reinforcement pad off the nozzle. §7a item 6's complaint was that this was
+**silent**, not that it was wrong. So the finding is severity `notice`, worded
+*"legal via a reducer at the nozzle; confirm the reducer and that the nozzle is
+sized for it"* — the tool noticing, not condemning. The conventions rule
+applies: a validator that fires on a correct real drawing trains users to
+ignore it, which is worse than no validator. Had this been an error, the tool
+would have been confidently wrong about ordinary correct work.
+
+**3. The physically-impossible case is caught.** A nozzle flange rated *below
+its own line's pressure class* (a 150# flange on a class-300 line) has no legal
+reading the way a reducer does. That is severity `warning`. Both tiers are
+soft — neither blocks export.
+
+**4. Sizes are compared as numbers, not strings — and the option lists force
+it.** The line sheet offers `1.5"` while the nozzle editor offers `1 1/2"` for
+the same size. A string comparison calls those different and fires on a correct
+drawing. Everything folds to NPS inches (`DN40` == `1.5"` == `1 1/2"`), and a
+mutation that reverts to string comparison is caught by check (g).
+
+**5. Two guards keep the imperial and metric rating systems apart.** ASME class
+and PN are not interchangeable at a fixed ratio, so they are compared only
+within their own system; `PN40` vs `300#` produces nothing rather than an
+invented defect. **A subtlety worth recording:** two independent guards enforce
+this (a PN early-return, and a `<150` floor on the ASME series), so the first
+mutation written for this rule was *uncaught* — removing one guard left the
+other doing the work. The mutation was rewritten to bypass both. A mutation
+that does not actually reproduce the defect proves nothing about the check,
+the same class of error §0e recorded.
+
+**6. The reference drawing's class field carries 315 and 320.** Those are the
+project's own 300-series classes (`PIPING_CLASS_SUGGESTIONS`), not separate
+ratings, and the line-number grammar emits them **bare** (`-300-HC`). The
+parser therefore had to accept a bare numeric class and fold 315/320 onto 300,
+or a 150# flange on a class-315 line would go unreported while the check
+appeared to work. Found by a check, not by inspection.
+
+**Gate:** `scripts/verify-nozzle-line.cjs` (17 checks, real browser) — must
+print `NOZZLE_LINE_PASS`. `scripts/mutate-nozzle-line.cjs` deliberately
+reintroduces each defect this section claims to catch (reducer made an error,
+string size comparison, absent-data guard dropped, signal-line guard dropped,
+signal-port guard dropped, free-line guard dropped, rating rule inverted, bare
+class unparsed, cross-system comparison, house-class fold removed, tier
+unwired) and requires the matching check to fail; **all 11 mutations are
+caught.**
+
+**Note on the harness, recorded because it cost time:** the first version of
+`mutate-nozzle-line.cjs` matched check labels in the `(a)` form used by
+`mutate-connections.cjs`, but this gate labels them `a.`. Every mutation
+reported "not caught" — a harness bug masquerading as a code verdict. It also
+lacked a `try/finally` around apply/restore, so a killed run left a *mutated*
+module on disk that the next build compiled. Both fixed; a harness that can
+report a false negative is as dangerous as a gate that always passes.
 
 ---
 
@@ -712,6 +783,9 @@ acceptance gate, not an aspiration.
     spec (size / class / material) only. There is no nozzle-vs-line
     reconciliation. That is real engineering value and remains **unbuilt**
     (see the "Live engineering" backlog item); it is not a wording tweak.
+    ~~**BUILT 2026-09-24 — see §4.13.**~~ The two rules now exist in
+    `src/validation/nozzleReconciliation.ts`, checking the line's own size and
+    pressure class against the nozzle at each end.
   - The size is surfaced in the **nozzle schedule** — a 6th engineering list
     added with this work — not in the equipment list.
 - Gate: `scripts/verify-nozzles.cjs` (NOZZLES_PASS 9/9).
@@ -774,6 +848,7 @@ node scripts/verify-undo.cjs         http://127.0.0.1:5199/   # 4.10 undo / redo
 node scripts/verify-freeline.cjs     http://127.0.0.1:5199/   # 4.1  free-line carve-out
 node scripts/verify-bug3.cjs         http://127.0.0.1:5199/   # 4.3  connection preview router
 node scripts/verify-connections.cjs  http://127.0.0.1:5199/   # 4.12 one pipe per nozzle + branch fittings
+node scripts/verify-nozzle-line.cjs  http://127.0.0.1:5199/   # 4.13 nozzle <-> line reconciliation
 ```
 
 Each prints a `*_PASS` line and exits 0. They are driven by real browser input
@@ -785,9 +860,10 @@ mutation-tested; the mutations live in the repo so they can be re-run:
 ```
 node scripts/mutate-connections.cjs  http://127.0.0.1:5199/   # 8 deliberate defects, 8 must be caught
 node scripts/mutate-size-reader.cjs  http://127.0.0.1:5199/   # the port-outline gate must refuse to guess
+node scripts/mutate-nozzle-line.cjs  http://127.0.0.1:5199/   # 11 deliberate defects, 11 must be caught
 ```
 
-Four further rules the gates encode:
+Six further rules the gates encode:
 
 - **Assert on the thing that would break, not a proxy for it.** Undo is checked
   by comparing node POSITIONS and undo-DEPTH DELTAS, never node counts — a
@@ -807,6 +883,22 @@ Four further rules the gates encode:
   expression was reported as having every port "28px off the drawn ink", which
   is a gate inventing a geometry bug. It now throws and names the symbol.
   `scripts/mutate-size-reader.cjs` pins that behaviour.
+- **A MUTATION HARNESS can lie, and its lie looks like a code verdict.**
+  `mutate-nozzle-line.cjs` was first written by copying the label convention
+  from `mutate-connections.cjs`, which labels its checks `(a)`, while this gate
+  labels them `a.` — so the harness matched nothing and reported all eleven
+  mutations as "NOT CAUGHT — this check proves nothing". Read literally that is
+  a damning claim about the gate; in fact not one mutation had been evaluated.
+  It also applied and restored each mutation without `try/finally`, so a run
+  killed mid-mutation left a *mutated module on disk* that the next build
+  compiled — which then corrupted the following run's results. Both fixed.
+  Verify the harness against a mutation you *know* the gate catches before
+  believing any verdict it prints, and always restore in `finally`.
+- **A mutation must reproduce the defect, not merely look like it.** The
+  cross-system comparison rule is enforced by two independent guards, so the
+  first mutation written for it removed only one and was uncaught — the gate
+  was correct and the mutation was not the defect. Same class of error as a
+  check that passes against the bug it exists to catch, from the other side.
 - **A test fixture that cannot represent a real drawing is a false-positive
   factory.** The §4.9 tag fixture had all 7 of its reference line numbers
   attached to one vessel nozzle and one pump nozzle — seven pipes on one
@@ -880,6 +972,54 @@ each specific defect (guard bypassed, rule made permissive, exception removed,
 exception applied per-symbol, tee placed under the equipment, offer following
 the wrong end, validator check dropped, refusal gone silent) and requires the
 matching check to FAIL. All 8 mutations are caught.
+
+### 4.13 Nozzle ↔ line reconciliation (NEW — 2026-09-24)
+
+Closes §7a item 6 and the correction recorded in §4.9.3. `specValidation.ts`
+(§4.1) compares a line's spec against the *component's declared data-sheet
+fields*. It never reads a nozzle. This section is the other half: what the pipe
+says about itself versus the nozzle it is actually bolted to, at both ends, per
+`src/validation/nozzleReconciliation.ts`.
+
+**4.13.1 Size difference is a NOTICE, never an error.** A line larger than the
+nozzle it lands on is **legal and common** — a reducer at the vessel wall is
+exactly how a 4" run leaves a 3" nozzle, and the vessel designer sizes the
+reinforcement pad off the nozzle. §7a item 6 recorded this case as **silent**;
+the defect was the silence, not the arrangement. It therefore renders as
+severity `notice`, worded as a confirmation ("legal via a reducer at the
+nozzle; confirm the reducer and that the nozzle is sized for it") rather than a
+defect. A tool that refused it would be confidently wrong about correct work.
+A nozzle *larger* than its line is silent entirely.
+
+**4.13.2 A flange rated below its own line's pressure class is a WARNING.** A
+150# nozzle on a class-300 line has no legal reading the way a reducer does —
+the flange would be under-rated for the line it is on. Severity `warning`.
+Neither this nor 4.13.1 blocks export; both are soft.
+
+**4.13.3 Sizes compare numerically, not as strings.** The line sheet offers
+`1.5"`; the nozzle editor offers `1 1/2"` for the same size. A string
+comparison calls those different and fires on a correct drawing. Both fold to
+NPS inches, so `DN40` == `1.5"` == `1 1/2"` and `4"` != `3"`.
+
+**4.13.4 ASME class and PN are compared only within their own system.** The two
+are not interchangeable at a fixed ratio, so a cross-system pair produces
+nothing rather than an invented mismatch.
+
+**4.13.5 Missing data produces nothing.** An unspecified nozzle size or rating
+is a normal state of a drawing in progress. No finding is manufactured from an
+absent value, however large the line.
+
+**4.13.6 Scope guards.** Signal lines and signal ports are excluded (an
+instrument's port is an electrical termination, not a flanged connection — the
+same exclusion §4.9.3's schedule makes), and free lines are excluded (they have
+no nozzle by definition, §4.1).
+
+**Acceptance gate:** `node scripts/verify-nozzle-line.cjs` — 17 checks in a real
+browser, covering the fixture's flagged set, the legal/illegal severity split,
+the numeric size table, the rating rules in both systems, and every scope
+guard. `node scripts/mutate-nozzle-line.cjs` reintroduces each defect this
+section claims to catch and requires the matching check to FAIL; **all 11
+mutations are caught.**
 
 ## 5. Technical Approach
 
@@ -1049,11 +1189,12 @@ All are **unbuilt**, verified against source, not inferred from absence.
    either. This is the difference between a tool Reyhan uses and a tool whose
    output a colleague can be handed, so it is the highest-value remaining
    item even though it comes after the correctness items.
-6. **Nozzle-vs-line reconciliation** (§4.9.3 correction). A 4" line leaving a
-   3" nozzle is legal and silent. This is the strongest "live engineering"
-   material available — it turns the validity engine into something that
-   knows *process* rules, not just graph rules — and it should be built on
-   top of a sound connectivity model, not before it.
+6. ~~**Nozzle-vs-line reconciliation** (§4.9.3 correction).~~ **RESOLVED
+   2026-09-24 — now §4.13.** A 4" line leaving a 3" nozzle is legal (a reducer
+   at the vessel wall) but was **silent**, and a nozzle flange rated below its
+   own line's pressure class was silent too. Both now surface in a dedicated
+   panel tier: size difference as a *notice* (legal, worded as "confirm the
+   reducer"), rating shortfall as a *warning*. Soft, never export-blocking.
 7. ~~**Undo/redo.**~~ **RESOLVED 2026-09-13 (`cdccd2c`), now §4.10.** The
    deferral was re-taken and undo/redo is built and gated
    (`scripts/verify-undo.cjs`, 19 checks, driven by real mouse input). Three

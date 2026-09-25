@@ -31,6 +31,7 @@ node scripts/verify-undo.cjs       http://127.0.0.1:5199/   # undo / redo
 node scripts/verify-freeline.cjs   http://127.0.0.1:5199/   # free-line mode
 node scripts/verify-bug3.cjs       http://127.0.0.1:5199/   # connection preview
 node scripts/verify-connections.cjs http://127.0.0.1:5199/  # one pipe per nozzle + branch fittings
+node scripts/verify-nozzle-line.cjs http://127.0.0.1:5199/  # nozzle <-> line reconciliation
 ```
 
 These are executable gates, not decoration. `verify-port-outline.cjs` mounts
@@ -77,6 +78,7 @@ number has corrupted their drawing.
 |---|---|---|
 | Errors | Block export | duplicate tags, pipes floating off a nozzle, unresolvable off-sheet references, instrument tags with no loop number |
 | Spec compatibility | Soft | line material/rating disagreeing with the equipment on it |
+| Nozzle & line | Soft; split into *notice* and *warning* | a line larger than its nozzle (legal via a reducer — a notice), a nozzle flange rated below its line's pressure class (a warning) |
 | Tag & line semantics | Soft | unrecognised ISA code, prefix/symbol disagreement, unparseable line number |
 
 The soft tier is soft deliberately. Real drawings extend the standards — the
@@ -85,6 +87,17 @@ supplied by a client) uses `ZSL`, `ZSH`, `HS` and `AV`, none of which ISA-5.1 de
 wrong about correct work. Only one tag rule is a hard error: no function
 letters or no loop number, which genuinely breaks loop cross-referencing,
 list generation and export.
+
+**The nozzle & line tier is where the tool knows a process rule.** A 4" line
+leaving a 3" nozzle is not a mistake — it is a reducer at the vessel wall, and
+the vessel designer sizes the reinforcement pad off the nozzle. So the tool
+*notices* it (a `notice`, worded as something to confirm) rather than
+condemning it; firing an error there would make the tool confidently wrong
+about ordinary correct work. What it does treat as a problem is a nozzle flange
+rated **below its own line's pressure class** — a 150# flange on a class-300
+line has no legal reading the way a reducer does. Sizes compare numerically, so
+`1.5"`, `1 1/2"` and `DN40` are the same nozzle and `4"` against `3"` is not;
+ASME class and PN are compared only within their own system.
 
 **Derived engineering lists.** Line list, valve list, instrument index,
 equipment list and nozzle schedule, all computed on render from the drawing

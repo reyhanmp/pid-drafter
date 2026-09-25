@@ -35,6 +35,7 @@ import {
 } from './validation/connectionRules';
 import { validateSpecCompatibility } from './validation/specValidation';
 import { validateTagSemantics } from './validation/tagSemantics';
+import { reconcileNozzles } from './validation/nozzleReconciliation';
 import { getProjectLoopMates } from './validation/instrumentLoops';
 import { offpageDisplayLabel, isOffpageConnector } from './validation/offpageReferences';
 import type { EquipmentNodeData, PipeEdgeData } from './types/diagram';
@@ -452,6 +453,15 @@ function DrawingCanvas() {
     [edges],
   );
   const specWarnings = useMemo(() => validateSpecCompatibility(diagramNodes, diagramEdges), [diagramNodes, diagramEdges]);
+  /**
+   * PRD §4.9.3 correction / §7a item 6 — nozzle ↔ line reconciliation. The
+   * other half of the spec check: `specWarnings` above compares the line's
+   * spec against the *component's* declared fields, this compares what the
+   * line says about itself (size, pressure class) against the *nozzle* it is
+   * actually bolted to at each end. Soft only — a reducer makes a larger line
+   * on a smaller nozzle legal, so that case is a notice, not a defect.
+   */
+  const nozzleWarnings = useMemo(() => reconcileNozzles(diagramNodes, diagramEdges), [diagramNodes, diagramEdges]);
   /** PRD §4.9.2 — soft tag/line semantics warnings (ISA-5.1 reading, prefix match, line-number grammar). */
   const tagWarnings = useMemo(() => validateTagSemantics(diagramNodes, diagramEdges), [diagramNodes, diagramEdges]);
   /** Every line number in the project, so the line editor suggests this drawing's own house codes first. */
@@ -705,7 +715,7 @@ function DrawingCanvas() {
             />
           </div>
           <div className="right-rail">
-            <ValidationPanel errors={projectValidation.errors} specWarnings={specWarnings} tagWarnings={tagWarnings} />
+            <ValidationPanel errors={projectValidation.errors} specWarnings={specWarnings} tagWarnings={tagWarnings} nozzleWarnings={nozzleWarnings} />
             <SymbolPalette />
           </div>
         </div>
